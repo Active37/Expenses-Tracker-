@@ -1,0 +1,6 @@
+{
+  "name": "AI-Powered Expense Tracker",
+  "description": "An intelligent expense tracker that helps users manage transactions, set budgets, view analytics, and receive customized AI insights, predictions and recommendations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
