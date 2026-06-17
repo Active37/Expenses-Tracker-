@@ -1,1 +1,1095 @@
-<router-outlet />
+<!-- AI-Powered Expense Tracker Dashboard Shell -->
+<div class="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-slate-700 selection:text-white relative overflow-x-hidden">
+  
+  <!-- Glowing Background Orbs (Premium visual detail) -->
+  <div class="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+  <div class="absolute bottom-10 right-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+  <!-- Header Bar -->
+  <header class="sticky top-0 z-40 bg-slate-900/85 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 sm:px-6">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-emerald-500/15">
+          <span class="material-icons text-xl text-white">account_balance_wallet</span>
+        </div>
+        <div>
+          <h1 class="text-xl font-semibold text-white tracking-tight flex items-center gap-1.5">
+            AETHER <span class="text-emerald-400 font-light text-sm tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded">WEALTH AI</span>
+          </h1>
+          <p class="text-xs text-slate-400">Intelligent Portfolio & Budget Planner</p>
+        </div>
+      </div>
+
+      <!-- Live Sync Indicators & User Authentication -->
+      <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+        
+        <!-- Cloud Sync Bubble -->
+        <div class="inline-flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/60 text-xs">
+          @if (engine.syncStatus() === 'synced') {
+            <span class="flex h-2 w-2 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+            </span>
+            <span class="text-slate-300">Secure Cloud Synced</span>
+          } @else if (engine.syncStatus() === 'syncing') {
+            <svg class="animate-spin h-3.5 w-3.5 text-blue-400" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-blue-300">Synchronizing...</span>
+          } @else if (engine.syncStatus() === 'saved_offline') {
+            <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <span class="text-amber-300">Caching local backups</span>
+          } @else {
+            <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+            <span class="text-slate-400">Offline Simulation</span>
+          }
+        </div>
+
+        <!-- Authentication Panel Trigger -->
+        @if (engine.authLoading()) {
+          <div class="w-24 h-8 bg-slate-800 rounded animate-pulse"></div>
+        } @else {
+          @if (engine.currentUser(); as user) {
+            <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-full pl-2 pr-3 py-1">
+              <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-700 flex items-center justify-center text-xs font-semibold text-white uppercase selection:bg-transparent">
+                {{ user.email ? user.email.substring(0,2) : 'US' }}
+              </div>
+              <span class="text-xs font-medium text-slate-300 max-w-[120px] truncate hidden sm:inline">{{ user.email }}</span>
+              <button 
+                (click)="engine.logout()" 
+                class="hover:text-red-400 text-slate-400 text-xs font-medium border-l border-slate-700 pl-2 ml-1"
+                title="Disconnect database sync"
+                id="logout_btn"
+              >
+                Sign Out
+              </button>
+            </div>
+          } @else {
+            <button 
+              (click)="showAuthPanel.set(true)" 
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 active:bg-emerald-500/30 border border-emerald-500/20 text-xs font-medium text-emerald-400 transition"
+              id="show_auth_panel_btn"
+            >
+              <span class="material-icons text-sm">cloud_upload</span>
+              Link Cloud Sync
+            </button>
+          }
+        }
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tab Rail -->
+  <div class="border-b border-slate-800/80 bg-slate-900/50">
+    <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto py-2">
+      <button 
+        (click)="activeTab.set('dashboard')"
+        [class]="activeTab() === 'dashboard' ? 'bg-slate-800 border border-slate-700/70 text-emerald-400' : 'text-slate-400 hover:text-slate-200'"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer"
+        id="tab_dashboard_btn"
+      >
+        <span class="material-icons text-base">dashboard</span>
+        Dashboard
+      </button>
+
+      <button 
+        (click)="activeTab.set('transactions')"
+        [class]="activeTab() === 'transactions' ? 'bg-slate-800 border border-slate-700/70 text-emerald-400' : 'text-slate-400 hover:text-slate-200'"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer relative"
+        id="tab_transactions_btn"
+      >
+        <span class="material-icons text-base">receipt_long</span>
+        Transactions Ledger
+        <span class="text-xs bg-slate-700 text-slate-300 rounded-full px-2 py-0.5 ml-1">{{ engine.transactions().length }}</span>
+      </button>
+
+      <button 
+        (click)="activeTab.set('budgets')"
+        [class]="activeTab() === 'budgets' ? 'bg-slate-800 border border-slate-700/70 text-emerald-400' : 'text-slate-400 hover:text-slate-200'"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer"
+        id="tab_budgets_btn"
+      >
+        <span class="material-icons text-base">settings_suggest</span>
+        Budget Limits
+      </button>
+
+      <button 
+        (click)="activeTab.set('advisor')"
+        [class]="activeTab() === 'advisor' ? 'bg-slate-800 border border-slate-700/70 text-emerald-400' : 'text-slate-400 hover:text-slate-200'"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer"
+        id="tab_advisor_btn"
+      >
+        <!-- AI Notification Pip -->
+        <span class="relative flex h-2 w-2 mr-0.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-violet-400"></span>
+        </span>
+        <span class="material-icons text-base">psychology</span>
+        AI Advisor
+      </button>
+    </div>
+  </div>
+
+  <!-- Budget Warning Banner -->
+  @if (engine.notifications().length > 0) {
+    <div class="bg-red-500/10 border-b border-red-500/20 text-red-300">
+      <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-start sm:items-center gap-3">
+          <span class="material-icons text-xl text-red-400 shrink-0">warning_amber</span>
+          <p class="text-xs sm:text-sm">
+            <strong>System Alerts:</strong> {{ engine.notifications()[0].message }}
+            @if (engine.notifications().length > 1) {
+              <button type="button" class="ml-2 underline cursor-pointer text-slate-300 text-xs inline bg-transparent border-none p-0 text-left" (click)="activeTab.set('budgets')">
+                and {{ engine.notifications().length - 1 }} other category budget warning(s)
+              </button>
+            }
+          </p>
+        </div>
+        <button 
+          (click)="activeTab.set('budgets')" 
+          class="shrink-0 text-xs font-semibold uppercase tracking-wider text-red-400 hover:text-red-300 mr-2 sm:mr-0 text-left"
+          id="fix_budget_btn"
+        >
+          Adjust Limits →
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- MAIN WORKSPACE CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 min-h-[calc(100vh-200px)]">
+
+    <!-- Global Financial Summary Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      
+      <!-- Balance Card -->
+      <div class="bg-slate-800/60 rounded-2xl border border-slate-700/60 p-5 shadow-sm transition hover:border-slate-600/60 relative overflow-hidden group">
+        <div class="absolute right-3 top-3 text-slate-500/20 group-hover:text-emerald-500/20 transition duration-300">
+          <span class="material-icons text-6xl">account_balance</span>
+        </div>
+        <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Aether net balance</span>
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1.5" [class.text-red-400]="engine.netBalance() < 0">
+          {{ engine.netBalance() | currency }}
+        </h2>
+        <div class="mt-2.5 flex items-center gap-1.5 text-xs">
+          <span class="font-medium text-slate-300">Unified local holdings</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-emerald-400 font-medium">Safe</span>
+        </div>
+      </div>
+
+      <!-- Income Card -->
+      <div class="bg-slate-800/60 rounded-2xl border border-slate-700/60 p-5 shadow-sm transition hover:border-slate-600/60 relative overflow-hidden group">
+        <div class="absolute right-3 top-3 text-slate-500/20 group-hover:text-emerald-500/20 transition duration-300">
+          <span class="material-icons text-6xl shadow-emerald-400/20">arrow_upward</span>
+        </div>
+        <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Monthly Income</span>
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-emerald-400 mt-1.5">
+          {{ engine.totalIncome() | currency }}
+        </h2>
+        <div class="mt-2.5 flex items-center gap-1 text-xs">
+          <span class="material-icons text-xs text-emerald-400">trending_up</span>
+          <span class="text-slate-300">{{ incomeCount() }} transactions logged</span>
+        </div>
+      </div>
+
+      <!-- Expenses Card -->
+      <div class="bg-slate-800/60 rounded-2xl border border-slate-700/60 p-5 shadow-sm transition hover:border-slate-600/60 relative overflow-hidden group">
+        <div class="absolute right-3 top-3 text-slate-500/20 group-hover:text-red-500/20 transition duration-300">
+          <span class="material-icons text-6xl">arrow_downward</span>
+        </div>
+        <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Spent This Month</span>
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-red-400 mt-1.5">
+          {{ engine.totalExpense() | currency }}
+        </h2>
+        <div class="mt-2.5 flex items-center gap-1 text-xs">
+          <span class="material-icons text-xs text-red-400">trending_down</span>
+          <span class="text-slate-300">{{ expenseCount() }} expenditures</span>
+        </div>
+      </div>
+
+      <!-- Monthly Budget Controller Status -->
+      <div class="bg-slate-800/60 rounded-2xl border border-slate-700/60 p-5 shadow-sm transition hover:border-slate-600/60">
+        <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Budget Allowance</span>
+        
+        <div class="flex items-baseline justify-between mt-1.5">
+          <h2 class="text-lg font-bold text-slate-100">
+            {{ engine.totalExpense() | currency }} <span class="text-xs font-normal text-slate-400">of {{ engine.budget().monthlyLimit | currency }}</span>
+          </h2>
+          <span class="text-xs font-bold" [class.text-red-400]="engine.budgetRatio() >= 100" [class.text-amber-400]="engine.budgetRatio() >= 80 && engine.budgetRatio() < 100" [class.text-emerald-400]="engine.budgetRatio() < 80">
+            {{ engine.budgetRatio() | number:'1.0-0' }}%
+          </span>
+        </div>
+
+        <div class="w-full bg-slate-700 rounded-full h-2 mt-3 overflow-hidden">
+          <div 
+            class="h-full rounded-full transition-all duration-500"
+            [class.bg-red-500]="engine.budgetRatio() >= 100"
+            [class.bg-amber-500]="engine.budgetRatio() >= 80 && engine.budgetRatio() < 100"
+            [class.bg-emerald-500]="engine.budgetRatio() < 80"
+            [style.width.%]="engine.budgetRatio()"
+          ></div>
+        </div>
+
+        <div class="mt-2 flex justify-between text-[10px] text-slate-400">
+          <span>Safe Allowance</span>
+          <span>Max Cap</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 1: DASHBOARD -->
+    @if (activeTab() === 'dashboard') {
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Core Column (Add Transaction Form) -->
+        <div class="lg:col-span-4 space-y-6">
+          <div class="bg-slate-800/80 rounded-2xl border border-slate-700/60 p-5 shadow-md">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <span class="material-icons text-emerald-400 text-lg">add_circle_outline</span>
+              Add Transaction
+            </h3>
+
+            <form [formGroup]="transactionForm" (ngSubmit)="submitTransaction()" class="space-y-4">
+              
+              <!-- Transaction Type Toggles -->
+              <div>
+                <span class="text-xs font-medium text-slate-400 block mb-2">Transaction Type</span>
+                <div class="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-700">
+                  <button 
+                    type="button"
+                    (click)="toggleType('expense')"
+                    [class]="selectedType() === 'expense' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'text-slate-400 hover:text-slate-200'"
+                    class="py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                    id="type_expense_toggle"
+                  >
+                    <span class="material-icons text-[14px]">remove_circle</span>
+                    Expense
+                  </button>
+
+                  <button 
+                    type="button"
+                    (click)="toggleType('income')"
+                    [class]="selectedType() === 'income' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200'"
+                    class="py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                    id="type_income_toggle"
+                  >
+                    <span class="material-icons text-[14px]">add_circle</span>
+                    Income
+                  </button>
+                </div>
+              </div>
+
+              <!-- Transaction Amount input -->
+              <div>
+                <label for="tx_amount" class="text-xs font-medium text-slate-400 block mb-1">Amount ($)</label>
+                <div class="relative rounded-xl shadow-sm">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-sm">
+                    $
+                  </div>
+                  <input 
+                    type="number" 
+                    id="tx_amount"
+                    formControlName="amount" 
+                    step="0.01"
+                    min="0.01"
+                    placeholder="0.00"
+                    class="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+                @if (transactionForm.get('amount')?.invalid && transactionForm.get('amount')?.touched) {
+                  <span class="text-[11px] text-red-400 mt-1 block">Valid positive amount is required.</span>
+                }
+              </div>
+
+              <!-- Transaction Category Dropdown -->
+              <div>
+                <label for="tx_category" class="text-xs font-medium text-slate-400 block mb-1">Category</label>
+                <select 
+                  id="tx_category"
+                  formControlName="category"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition appearance-none cursor-pointer"
+                >
+                  @for (cat of categoriesList(); track cat) {
+                    <option [value]="cat">{{ cat }}</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Transaction Date Picker -->
+              <div>
+                <label for="tx_date" class="text-xs font-medium text-slate-400 block mb-1">Transaction Date</label>
+                <input 
+                  type="date" 
+                  id="tx_date"
+                  formControlName="date"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition cursor-pointer"
+                />
+              </div>
+
+              <!-- Short Narrative Detail Note -->
+              <div>
+                <label for="tx_note" class="text-xs font-medium text-slate-400 block mb-1">Notes / Narrative</label>
+                <input 
+                  type="text" 
+                  id="tx_note"
+                  formControlName="note" 
+                  maxlength="100"
+                  placeholder="e.g. Whole Foods weekly grocery run..."
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+
+              <!-- Post Action -->
+              <button 
+                type="submit" 
+                [disabled]="transactionForm.invalid"
+                class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/20 hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer text-center"
+                id="submit_tx_btn"
+              >
+                Log Transaction
+              </button>
+
+            </form>
+          </div>
+
+          <!-- Fast Cache offline indicator -->
+          <div class="bg-slate-800/40 rounded-2xl border border-slate-700/40 p-4 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="material-icons text-slate-400 text-xl">offline_bolt</span>
+              <div>
+                <p class="text-xs font-semibold text-slate-200">Local Cache Database</p>
+                <p class="text-[10px] text-slate-400">Auto-saves calculations offsite to localStorage</p>
+              </div>
+            </div>
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></div>
+          </div>
+        </div>
+
+        <!-- Right Visual Analytics Bento Grid -->
+        <div class="lg:col-span-8 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+            <!-- Circular Breakdowns Card -->
+            <div class="md:col-span-6 bg-slate-800/80 rounded-2xl border border-slate-700/60 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span class="material-icons text-teal-400 text-lg">pie_chart</span>
+                  Expenditure Breakdown
+                </h3>
+                <p class="text-xs text-slate-400 mb-6">Visual percentage metric segmented by budget category</p>
+              </div>
+
+              @if (engine.totalExpense() <= 0) {
+                <!-- Empty state visual placeholder -->
+                <div class="my-6 text-center py-8">
+                  <div class="w-16 h-16 rounded-full bg-slate-700/50 flex class-selector items-center justify-center mx-auto mb-3">
+                    <span class="material-icons text-slate-500 text-2xl">insights</span>
+                  </div>
+                  <p class="text-sm text-slate-400 font-semibold">No Expense Slices</p>
+                  <p class="text-xs text-slate-500 mt-1 p-2">Log your first negative transaction to feed analytics</p>
+                </div>
+              } @else {
+                <!-- Beautiful interactive native Donut Ring -->
+                <div class="relative py-4 flex justify-center">
+                  <svg viewBox="0 0 100 100" class="w-40 h-40 xl:w-44 xl:h-44 origin-center -rotate-90">
+                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#1d293d" stroke-width="8" />
+                    @for (slice of donutSlices(); track slice.category) {
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="transparent"
+                        [attr.stroke]="slice.color"
+                        stroke-width="8.5"
+                        [attr.stroke-dasharray]="slice.dashArray"
+                        [attr.stroke-dashoffset]="slice.dashOffset"
+                        [style.transform]="'rotate(' + slice.rotation + 'deg)'"
+                        class="origin-center transition-all duration-300 cursor-pointer hover:stroke-[10px]"
+                        (mouseenter)="selectedDonutSlice.set(slice)"
+                        (mouseleave)="selectedDonutSlice.set(null)"
+                      />
+                    }
+                  </svg>
+
+                  <!-- Inner label -->
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    @if (selectedDonutSlice(); as item) {
+                      <span class="text-xs font-bold text-slate-400 uppercase truncate max-w-[100px]">{{ item.category }}</span>
+                      <span class="text-lg font-black text-white mt-0.5">{{ item.percent | number:'1.1-1' }}%</span>
+                      <span class="text-[10px] text-slate-500">{{ item.amount | currency }}</span>
+                    } @else {
+                      <span class="text-[10px] uppercase font-bold text-slate-400">Total Spent</span>
+                      <span class="text-xl font-extrabold text-white">{{ engine.totalExpense() | currency:'USD':'symbol':'1.0-0' }}</span>
+                      <span class="text-[9px] text-emerald-400">Slices online</span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Custom Grid details legend -->
+                <div class="grid grid-cols-2 gap-2 mt-4 text-[11px] border-t border-slate-700/60 pt-3.5">
+                  @for (slice of donutSlices(); track slice.category) {
+                    <div class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/25 p-1 rounded" (mouseenter)="selectedDonutSlice.set(slice)">
+                      <div class="w-2.5 h-2.5 rounded-full" [style.background-color]="slice.color"></div>
+                      <span class="truncate text-slate-300 font-medium">{{ slice.category }}</span>
+                      <span class="ml-auto text-slate-400 font-semibold">{{ slice.percent | number:'1.0-0' }}%</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- 7-Day Histograms Chart Bar Card -->
+            <div class="md:col-span-6 bg-slate-800/80 rounded-2xl border border-slate-700/60 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span class="material-icons text-emerald-400 text-lg">equalizer</span>
+                  7-Day Spending Wave
+                </h3>
+                <p class="text-xs text-slate-400 mb-6 font-normal">Tracking aggregate expenditures over the last 7 calendar days</p>
+              </div>
+
+              <!-- Bar Heights Container -->
+              <div class="flex items-end justify-between h-44 border-b border-slate-700/60 pb-1 px-2 gap-1.5">
+                @for (day of last7DaysSpending(); track day.dateStr) {
+                  <div class="flex flex-col items-center flex-1 group cursor-pointer">
+                    <!-- Tooltip overhead -->
+                    <div class="opacity-0 group-hover:opacity-100 absolute pb-14 transition duration-200 pointer-events-none z-10">
+                      <div class="bg-slate-950/90 text-[10px] text-white px-2 py-1 rounded-md border border-slate-700 text-center font-bold font-mono">
+                        {{ day.amount | currency }}
+                      </div>
+                    </div>
+                    
+                    <!-- Vertical Pillar bar -->
+                    <div 
+                      class="w-full rounded-t-md transition-all duration-500 bg-gradient-to-t"
+                      [class.from-slate-700]="day.amount === 0"
+                      [class.to-slate-800]="day.amount === 0"
+                      [class.from-emerald-600]="day.amount > 0 && day.amount < 150"
+                      [class.to-teal-400]="day.amount > 0 && day.amount < 150"
+                      [class.from-rose-600]="day.amount >= 150"
+                      [class.to-rose-400]="day.amount >= 150"
+                      [style.height.%]="day.heightPercentage"
+                    ></div>
+                    
+                    <!-- Date Label text -->
+                    <span class="text-[9px] text-slate-400 mt-2 block font-mono">{{ day.label }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="flex justify-between text-[10px] text-slate-500 mt-2">
+                <span>← Previous Week</span>
+                <span>Active Today</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Quick Recent Ledger View Preview -->
+          <div class="bg-slate-800/80 rounded-2xl border border-slate-700/60 p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span class="material-icons text-indigo-400 text-lg">history</span>
+                Recent Record Book
+              </h3>
+              <button 
+                (click)="activeTab.set('transactions')" 
+                class="text-xs text-indigo-400 font-semibold hover:underline cursor-pointer"
+                id="view_all_ledger_btn"
+              >
+                View Complete Ledger →
+              </button>
+            </div>
+
+            <!-- Concise Transactions list table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-700 text-[11px] font-bold text-slate-400 tracking-wider">
+                    <th class="pb-2">Date</th>
+                    <th class="pb-2">Category</th>
+                    <th class="pb-2">Note</th>
+                    <th class="pb-2 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody class="text-xs divide-y divide-slate-700/40">
+                  @for (tx of engine.transactions().slice(0, 4); track tx.id) {
+                    <tr class="hover:bg-slate-700/15 transition">
+                      <td class="py-2.5 text-slate-400 font-mono">{{ tx.date | date:'MMM d' }}</td>
+                      <td class="py-2.5">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                          [class.bg-emerald-500/10]="tx.type === 'income'"
+                          [class.text-emerald-400]="tx.type === 'income'"
+                          [class.bg-red-500/10]="tx.type === 'expense'"
+                          [class.text-red-400]="tx.type === 'expense'"
+                        >
+                          {{ tx.category }}
+                        </span>
+                      </td>
+                      <td class="py-2.5 text-slate-300 truncate max-w-[150px]">{{ tx.note || '—' }}</td>
+                      <td class="py-2.5 text-right font-bold text-white" [class.text-emerald-400]="tx.type === 'income'" [class.text-red-400]="tx.type === 'expense'">
+                        {{ tx.type === 'income' ? '+' : '-' }}{{ tx.amount | currency }}
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="4" class="text-center py-6 text-slate-500 text-xs">
+                        No transactions logged yet. Use the sidebar logging widget.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    }
+
+    <!-- TAB 2: TRANSACTIONS LEDGER -->
+    @if (activeTab() === 'transactions') {
+      <div class="bg-slate-800/80 rounded-2xl border border-slate-700/60 p-6 shadow-md space-y-6">
+        
+        <!-- Header Controls -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-700/60 pb-5">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-1.5">
+              <span class="material-icons text-emerald-400">payments</span>
+              Consolidated Transaction Records
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Audit, delete, and evaluate your complete history of cash events</p>
+          </div>
+
+          <!-- Functional Filtering Controls -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            
+            <!-- Notes Search Input -->
+            <div class="relative w-full sm:w-48">
+              <span class="material-icons text-slate-500 text-sm absolute left-3 top-2.5">search</span>
+              <input 
+                type="text" 
+                placeholder="Search ledger notes..."
+                [value]="searchQuery()"
+                (input)="searchQuery.set($any($event.target).value)"
+                class="w-full bg-slate-900 border border-slate-700 text-xs text-white pl-8 pr-3 py-2 rounded-xl focus:outline-none focus:border-emerald-500 transition"
+              />
+            </div>
+
+            <!-- Ledger Type Filter Selection -->
+            <select 
+              [value]="typeFilter()"
+              (change)="typeFilter.set($any($event.target).value)"
+              class="bg-slate-900 border border-slate-700 text-xs text-white px-3 py-2 rounded-xl focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Operations</option>
+              <option value="income">Incomes Only</option>
+              <option value="expense">Expenses Only</option>
+            </select>
+
+            <!-- Category Filters Dropdown -->
+            <select 
+              [value]="categoryFilter()"
+              (change)="categoryFilter.set($any($event.target).value)"
+              class="bg-slate-900 border border-slate-700 text-xs text-white px-3 py-2 rounded-xl focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Categories</option>
+              <optgroup label="Income Categories">
+                @for (c of allIncomeCategories; track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </optgroup>
+              <optgroup label="Expense Categories">
+                @for (c of allExpenseCategories; track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <!-- Master Records Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left whitespace-nowrap border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700 text-xs text-slate-400 font-bold tracking-wider">
+                <th class="py-3 px-4">Effective Date</th>
+                <th class="py-3 px-4">Classification</th>
+                <th class="py-3 px-4">Budget Category</th>
+                <th class="py-3 px-4">Narrative Description</th>
+                <th class="py-3 px-4 text-right">Value</th>
+                <th class="py-3 px-4 text-right">Ledger actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700/40 text-xs text-slate-200">
+              @for (tx of filteredTransactions(); track tx.id) {
+                <tr class="hover:bg-slate-700/10 transition">
+                  <td class="py-3 px-4 font-mono text-slate-400">{{ tx.date | date:'fullDate' }}</td>
+                  <td class="py-3 px-4">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold"
+                          [class.bg-emerald-500/10]="tx.type === 'income'"
+                          [class.text-emerald-400]="tx.type === 'income'"
+                          [class.bg-red-500/10]="tx.type === 'expense'"
+                          [class.text-red-400]="tx.type === 'expense'"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full" [class.bg-emerald-500]="tx.type === 'income'" [class.bg-red-500]="tx.type === 'expense'"></span>
+                      {{ tx.type | uppercase }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 font-semibold text-slate-300">{{ tx.category }}</td>
+                  <td class="py-3 px-4 text-slate-300 italic max-w-sm overflow-hidden text-ellipsis">{{ tx.note || 'No custom notes provided.' }}</td>
+                  <td class="py-3 px-4 text-right font-extrabold text-white font-mono" [class.text-emerald-400]="tx.type === 'income'" [class.text-red-400]="tx.type === 'expense'">
+                    {{ tx.type === 'income' ? '+' : '-' }}{{ tx.amount | currency }}
+                  </td>
+                  <td class="py-3 px-4 text-right">
+                    <button 
+                      (click)="deleteTransaction(tx.id)"
+                      class="text-slate-500 hover:text-red-400 transition hover:bg-red-500/10 p-1.5 rounded-lg active:scale-95"
+                      title="Erase transaction"
+                      [id]="'delete_tx_' + tx.id"
+                    >
+                      <span class="material-icons text-base">delete_outline</span>
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="text-center py-12 text-slate-500 select-none">
+                    <span class="material-icons text-3xl mb-2 text-slate-600 block">search_off</span>
+                    No financial archives match the specified ledger filter controls.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- TAB 3: BUDGETS & LIMITS -->
+    @if (activeTab() === 'budgets') {
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Setting limits panel form -->
+        <div class="lg:col-span-7 bg-slate-800/80 rounded-2xl border border-slate-700/60 p-6 shadow-md">
+          <div class="flex items-center justify-between mb-4 border-b border-slate-700/60 pb-3">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-1.5">
+                <span class="material-icons text-amber-400">admin_panel_settings</span>
+                Configure Financial Thresholds
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5">Define standard max spending parameters to spark real-time safety warnings</p>
+            </div>
+            
+            @if (showBudgetSuccessToast()) {
+              <span class="text-xs text-emerald-400 font-semibold bg-emerald-500/15 border border-emerald-500/20 px-2.5 py-1 rounded-full animate-bounce">
+                Settings saved!
+              </span>
+            }
+          </div>
+
+          <form [formGroup]="budgetForm" (ngSubmit)="updateBudgetSettings()" class="space-y-5">
+            
+            <!-- Global monthly limit -->
+            <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4">
+              <label for="monthly_limit" class="text-xs font-bold text-emerald-400 block mb-1">AGGREGATE MONTHLY BUDGET CAPS ($)</label>
+              <p class="text-[10px] text-slate-400 mb-2">Overall target across all compiled expenses</p>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">$</div>
+                <input 
+                  type="number" 
+                  id="monthly_limit"
+                  formControlName="monthlyLimit"
+                  class="w-full pl-8 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white font-extrabold focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            <!-- Individual category constraints -->
+            <div>
+              <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">Individual constraints by category</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                @for (cat of allExpenseCategories; track cat) {
+                  <div class="bg-slate-900/50 border border-slate-700/40 rounded-xl p-3">
+                    <label [for]="'bg_' + cat" class="text-xs font-medium text-slate-300 block mb-1.5">{{ cat }} Limit</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">$</div>
+                      <input 
+                        type="number" 
+                        [id]="'bg_' + cat"
+                        [formControlName]="cat"
+                        class="w-full pl-7 pr-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                }
+
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              [disabled]="budgetForm.invalid"
+              class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-xs font-extrabold uppercase tracking-widest transition-all cursor-pointer text-center"
+              id="save_budgets_btn"
+            >
+              Update Budget Profiles
+            </button>
+          </form>
+        </div>
+
+        <!-- Alert center dashboard column -->
+        <div class="lg:col-span-5 space-y-6">
+          <div class="bg-slate-800/80 rounded-2xl border border-slate-700/60 p-5 shadow-sm space-y-4">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <span class="material-icons text-red-400">notifications_active</span>
+              Budgets & Safety alerts
+            </h3>
+            <p class="text-xs text-slate-400">Real-time alerts compiling overall expenditures vs defined category capsules</p>
+
+            <div class="space-y-2.5">
+              @for (alert of engine.notifications(); track alert.id) {
+                <div class="p-3.5 rounded-xl text-xs flex gap-3"
+                  [class.bg-red-500/10]="alert.type === 'warning'"
+                  [class.border]="alert.type === 'warning'"
+                  [class.border-red-500/25]="alert.type === 'warning'"
+                  [class.text-red-300]="alert.type === 'warning'"
+                  [class.bg-amber-500/10]="alert.type === 'info'"
+                  [class.border]="alert.type === 'info'"
+                  [class.border-amber-500/20]="alert.type === 'info'"
+                  [class.text-amber-300]="alert.type === 'info'"
+                >
+                  <span class="material-icons shrink-0 text-base" [class.text-red-400]="alert.type === 'warning'" [class.text-amber-400]="alert.type === 'info'">
+                    {{ alert.type === 'warning' ? 'error_outline' : 'info_outline' }}
+                  </span>
+                  <div>
+                    <span class="font-bold uppercase tracking-wider text-[9px] block mb-0.5" [class.text-red-400]="alert.type === 'warning'" [class.text-amber-400]="alert.type === 'info'">
+                      {{ alert.type === 'warning' ? 'Breach Alert' : 'Approach Caution' }}
+                    </span>
+                    <p class="leading-relaxed">{{ alert.message }}</p>
+                  </div>
+                </div>
+              } @empty {
+                <div class="text-center py-10 text-slate-500 border border-dashed border-slate-700/50 rounded-xl">
+                  <span class="material-icons text-2xl mb-1.5 text-slate-600 block">mood</span>
+                  All spending profiles are completely green! Excellent financial buffer remaining.
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Quick tactical card -->
+          <div class="bg-slate-800/40 rounded-2xl border border-slate-700/40 p-4 text-xs leading-relaxed text-slate-300">
+            <p><strong>💡 Dynamic Calculations Note:</strong> Budget exceeded and cautionary parameters recompute instantly whenever transactions are modified or budget adjustments are finalized. Secure databases replicate state dynamically.</p>
+          </div>
+        </div>
+
+      </div>
+    }
+
+    <!-- TAB 4: AI COACH ADVISOR -->
+    @if (activeTab() === 'advisor') {
+      <div class="bg-slate-800/80 rounded-2xl border border-slate-700/60 p-6 shadow-md space-y-6 relative overflow-hidden">
+        
+        <!-- Glowing watermark decoration -->
+        <div class="absolute -right-12 -top-12 text-slate-700/10 pointer-events-none selection:bg-transparent">
+          <span class="material-icons text-[180px]">psychology</span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/60 pb-5">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="material-icons text-violet-400 animate-pulse">insights</span>
+              Aether-2.5 AI Financial Wealth Coach
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Harness Deep Generative AI models to analyze logs, forecast next month, and gain strategic assets</p>
+          </div>
+
+          <button 
+            type="button" 
+            (click)="fetchAIInsights()"
+            [disabled]="engine.aiLoading()"
+            class="inline-flex items-center gap-1.5 px-4.5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-violet-950/25 hover:from-violet-500 hover:to-indigo-500 active:scale-95 disabled:opacity-50 hover:shadow-violet-500/25 duration-200 transition cursor-pointer"
+            id="update_ai_insights_btn"
+          >
+            @if (engine.aiLoading()) {
+              <!-- Loading wave spinner -->
+              <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Thinking...
+            } @else {
+              <span class="material-icons text-sm">auto_awesome</span>
+              Generate Realtime Insights
+            }
+          </button>
+        </div>
+
+        @if (engine.aiError()) {
+          <div class="bg-red-500/10 border border-red-500/20 text-red-300 p-4 rounded-xl text-xs flex gap-2.5">
+            <span class="material-icons text-base">error</span>
+            <div>
+              <strong>Advisory Generation Error:</strong> {{ engine.aiError() }}
+              <p class="text-[10px] text-slate-400 mt-1">Please ensure your Gemini API Key is linked in the settings drawer.</p>
+            </div>
+          </div>
+        }
+
+        @if (engine.aiInsights(); as report) {
+          
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left Narrative & Predictions -->
+            <div class="lg:col-span-7 space-y-6">
+              
+              <!-- Report Overview Section -->
+              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                  <span class="material-icons text-violet-400 text-sm">notes</span>
+                  Current Period Summary
+                </h3>
+                <p class="text-sm leading-relaxed text-slate-200 font-medium">
+                  {{ report.monthlySummary }}
+                </p>
+              </div>
+
+              <!-- Predictions and Forecasting -->
+              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow">
+                <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                  <span class="material-icons text-emerald-400 text-sm">batch_prediction</span>
+                  Month-Ahead Spending Predictions
+                </h3>
+                <p class="text-xs leading-relaxed text-slate-300">
+                  {{ report.prediction }}
+                </p>
+                <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-3 text-[11px] text-slate-400 leading-relaxed mt-4">
+                  <strong>💡 Advisor's Rule of Survival:</strong> The forecast parses historical recurrence ratios. Setting stricter caps reduces upcoming model variances.
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Right Tactical Lists and Segment Markers -->
+            <div class="lg:col-span-5 space-y-6">
+              
+              <!-- Recommendations list -->
+              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow flex flex-col justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
+                    <span class="material-icons text-amber-400 text-sm">stars</span>
+                    AI Tactical Recommendations
+                  </h3>
+                  
+                  <div class="space-y-3">
+                    @for (rec of report.recommendations; track rec) {
+                      <div class="flex gap-2 text-xs text-slate-200">
+                        <span class="text-emerald-400 shrink-0 font-bold">▶</span>
+                        <p class="leading-normal">{{ rec }}</p>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- General Pattern Insights -->
+              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow">
+                <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
+                  <span class="material-icons text-indigo-400 text-sm">network_check</span>
+                  Behavourial Pattern Markers
+                </h3>
+
+                <div class="space-y-3">
+                  @for (insight of report.insights; track insight.title) {
+                    <div class="p-3 bg-slate-950 rounded-xl text-xs space-y-1">
+                      <div class="flex items-center gap-1.5">
+                        <span class="material-icons text-sm" 
+                          [class.text-emerald-400]="insight.severity === 'good'"
+                          [class.text-amber-400]="insight.severity === 'warning'"
+                          [class.text-blue-400]="insight.severity === 'info'"
+                        >
+                          circle
+                        </span>
+                        <span class="font-bold text-slate-100 text-[11px]">{{ insight.title }}</span>
+                      </div>
+                      <p class="text-slate-400 text-[11px] leading-relaxed">{{ insight.text }}</p>
+                    </div>
+                  }
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        } @else {
+          <!-- Empty AI insights landing card -->
+          <div class="text-center py-16 bg-slate-900/50 rounded-2xl border border-dashed border-slate-700">
+            <div class="w-16 h-16 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center mx-auto mb-4">
+              <span class="material-icons text-3xl">auto_awesome</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-1">Generate AI Portfolio Intelligence Report</h3>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto mb-6">Let Aether Coach parse your active balance ledger, run category histories, check limits, and output personalized summaries and predictions.</p>
+            
+            <button 
+              (click)="fetchAIInsights()" 
+              [disabled]="engine.aiLoading()"
+              class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs uppercase tracking-wider shadow-md transition disabled:opacity-50 cursor-pointer"
+              id="initial_generate_ai_btn"
+            >
+              @if (engine.aiLoading()) {
+                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing database...
+              } @else {
+                <span class="material-icons text-sm">auto_awesome</span>
+                Run Cognitive Analysis
+              }
+            </button>
+          </div>
+        }
+
+      </div>
+    }
+
+  </main>
+
+  <!-- AUTHENTICATION DIALOG DRAWER MODAL OVERLAY -->
+  @if (showAuthPanel()) {
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      
+      <!-- Modal Box -->
+      <div class="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+        
+        <!-- Close trigger -->
+        <button 
+          (click)="showAuthPanel.set(false)" 
+          class="absolute right-4 top-4 text-slate-400 hover:text-slate-100 p-1.5 rounded-lg active:scale-95 cursor-pointer"
+          id="close_auth_panel_btn"
+        >
+          <span class="material-icons text-xl">close</span>
+        </button>
+
+        <div class="mb-5 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+            <span class="material-icons text-xl">cloud_sync</span>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Unlock Secure Cloud Sync</h3>
+            <p class="text-xs text-slate-400">Save data to Firestore and access across multiple devices</p>
+          </div>
+        </div>
+
+        @if (authError()) {
+          <div class="bg-red-500/10 border border-red-500/20 text-red-300 p-3.5 rounded-xl text-xs font-medium mb-4">
+            {{ authError() }}
+          </div>
+        }
+
+        @if (authSuccessMsg()) {
+          <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-3.5 rounded-xl text-xs font-medium mb-4">
+            {{ authSuccessMsg() }}
+          </div>
+        }
+
+        <!-- Toggle Modes tab bar -->
+        <div class="grid grid-cols-2 gap-1.5 bg-slate-900/80 p-1 rounded-xl mb-4 text-center text-xs font-bold border border-slate-700/60">
+          <button 
+            (click)="authMode.set('login')"
+            [class]="authMode() === 'login' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+            class="py-1.5 rounded-lg transition cursor-pointer"
+            id="auth_mode_login_btn"
+          >
+            Access Account
+          </button>
+          <button 
+            (click)="authMode.set('signUp')"
+            [class]="authMode() === 'signUp' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+            class="py-1.5 rounded-lg transition cursor-pointer"
+            id="auth_mode_signup_btn"
+          >
+            Create Sandbox
+          </button>
+        </div>
+
+        <!-- Credentials Form -->
+        <form [formGroup]="authForm" (ngSubmit)="onAuthSubmit()" class="space-y-4">
+          
+          <div>
+            <label for="auth_email" class="text-xs font-semibold text-slate-400 block mb-1">Email Coordinates</label>
+            <input 
+              type="email" 
+              id="auth_email"
+              formControlName="email" 
+              placeholder="e.g. investor@wealth.com"
+              class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
+            />
+            @if (authForm.get('email')?.invalid && authForm.get('email')?.touched) {
+              <span class="text-[10px] text-red-400 mt-1 block">Valid Email layout required.</span>
+            }
+          </div>
+
+          <div>
+            <label for="auth_password" class="text-xs font-semibold text-slate-400 block mb-1">Passphrase</label>
+            <input 
+              type="password" 
+              id="auth_password"
+              formControlName="password" 
+              placeholder="••••••••"
+              class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
+            />
+            @if (authForm.get('password')?.invalid && authForm.get('password')?.touched) {
+              <span class="text-[10px] text-red-400 mt-1 block">Requires at least 6 characters.</span>
+            }
+          </div>
+
+          <button 
+            type="submit" 
+            [disabled]="authForm.invalid"
+            class="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/10 active:scale-95 duration-150 transition disabled:opacity-50 disabled:pointer-events-none cursor-pointer text-center"
+            id="auth_submit_btn"
+          >
+            {{ authMode() === 'login' ? 'Confirm Account Link' : 'Initialize Cloud Sandbox' }}
+          </button>
+
+          <!-- Divider line -->
+          <div class="relative py-2 text-center text-[10px] uppercase font-bold text-slate-500">
+            <span class="bg-slate-800 px-3 relative z-10">Or Quick Preview</span>
+            <div class="absolute inset-y-1/2 left-0 right-0 h-px bg-slate-700/50"></div>
+          </div>
+
+          <!-- Quick Test account button -->
+          <button 
+            type="button" 
+            (click)="quickTestSignIn()"
+            class="w-full py-2.5 px-4 rounded-xl border border-slate-600 hover:border-slate-400 bg-slate-800 text-slate-300 font-bold text-xs hover:text-white transition cursor-pointer text-center"
+            id="auth_sandbox_btn"
+          >
+            🔑 Explore Demo Sandbox (Link Instantly)
+          </button>
+
+        </form>
+
+      </div>
+    </div>
+  }
+
+  <!-- Page Footer -->
+  <footer class="bg-slate-950 text-slate-500 border-t border-slate-800/80 mt-12 py-8 px-4 text-center">
+    <div class="max-w-7xl mx-auto space-y-2">
+      <p class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Aether Wealth AI Engine</p>
+      <p class="text-[10px] max-w-sm mx-auto leading-relaxed">Integrated offline sync capabilities linking local browser registries to secure Firestore nodes. Insights rendered using server-side security architectures.</p>
+      <p class="text-[10px] text-slate-600 pt-3">© 2026 Aether Solutions Co. All assets reserved.</p>
+    </div>
+  </footer>
+
+</div>
