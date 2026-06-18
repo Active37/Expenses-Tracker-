@@ -70,11 +70,11 @@
           } @else {
             <button 
               (click)="showAuthPanel.set(true)" 
-              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 active:bg-emerald-500/30 border border-emerald-500/20 text-xs font-medium text-emerald-400 transition"
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-semibold text-xs transition cursor-pointer"
               id="show_auth_panel_btn"
             >
-              <span class="material-icons text-sm">cloud_upload</span>
-              Link Cloud Sync
+              <span class="material-icons text-sm">login</span>
+              Sign In or Register
             </button>
           }
         }
@@ -506,6 +506,157 @@
               </div>
             </div>
 
+            <!-- Recharts-inspired 6-Month Spending Trend Line Chart Card -->
+            <div id="recharts_trend_card" class="col-span-12 md:col-span-12 bg-slate-800/80 rounded-2xl border border-slate-700/60 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
+                  <div>
+                    <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                      <span class="material-icons text-violet-400 text-lg">stacked_line_chart</span>
+                      6-Month Spending Trend
+                    </h3>
+                    <p class="text-xs text-slate-400 font-normal">Semi-annual aggregate analysis for long-term health monitoring</p>
+                  </div>
+                  
+                  @if (hoveredTrendIndex() !== null) {
+                    <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-700/50 px-3 py-1.5 rounded-xl font-mono text-xs">
+                      <span class="text-slate-400">{{ last6MonthsSpending().points[hoveredTrendIndex()!].label }}:</span>
+                      <span class="text-white font-bold">{{ last6MonthsSpending().points[hoveredTrendIndex()!].amount | currency }}</span>
+                      <span class="text-[10px]" [class.text-emerald-400]="last6MonthsSpending().points[hoveredTrendIndex()!].amount === 0 || last6MonthsSpending().points[hoveredTrendIndex()!].diffLabel.includes('decrease')" [class.text-rose-400]="last6MonthsSpending().points[hoveredTrendIndex()!].amount > 0 && last6MonthsSpending().points[hoveredTrendIndex()!].diffLabel.includes('increase')">
+                        {{ last6MonthsSpending().points[hoveredTrendIndex()!].diffLabel }}
+                      </span>
+                    </div>
+                  } @else {
+                    <div class="text-[10px] text-slate-500 font-mono self-end sm:self-center">
+                      Hover points for comparative statistics
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Interactive Recharts-style Canvas Grid -->
+              <div class="relative w-full h-56 mt-2">
+                <svg [attr.viewBox]="'0 0 ' + last6MonthsSpending().width + ' ' + last6MonthsSpending().height" class="w-full h-full overflow-visible">
+                  <defs>
+                    <linearGradient id="recharts-area-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stop-color="#8b5cf6" stop-opacity="0.25"/>
+                      <stop offset="95%" stop-color="#8b5cf6" stop-opacity="0.0"/>
+                    </linearGradient>
+                    <linearGradient id="recharts-line-grad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="#a78bfa"/>
+                      <stop offset="100%" stop-color="#c084fc"/>
+                    </linearGradient>
+                  </defs>
+
+                  <!-- CartesianHorizontalGrid lines -->
+                  @for (grid of last6MonthsSpending().gridLines; track grid.y) {
+                    <g>
+                      <line 
+                        [attr.x1]="last6MonthsSpending().paddingLeft" 
+                        [attr.y1]="grid.y" 
+                        [attr.x2]="last6MonthsSpending().width - last6MonthsSpending().paddingRight" 
+                        [attr.y2]="grid.y" 
+                        stroke="#334155" 
+                        stroke-dasharray="3 3" 
+                        stroke-opacity="0.4"
+                      />
+                      <text 
+                        [attr.x]="last6MonthsSpending().paddingLeft - 8" 
+                        [attr.y]="grid.y + 4" 
+                        text-anchor="end" 
+                        class="fill-slate-400 font-mono text-[9px]"
+                      >
+                        {{ grid.val }}
+                      </text>
+                    </g>
+                  }
+
+                  <!-- Area Fill -->
+                  @if (last6MonthsSpending().areaPath) {
+                    <path 
+                      [attr.d]="last6MonthsSpending().areaPath" 
+                      fill="url(#recharts-area-grad)"
+                    />
+                  }
+
+                  <!-- Line Path stroke -->
+                  @if (last6MonthsSpending().linePath) {
+                    <path 
+                      [attr.d]="last6MonthsSpending().linePath" 
+                      stroke="url(#recharts-line-grad)" 
+                      stroke-width="3" 
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      fill="none"
+                    />
+                  }
+
+                  <!-- Interactive vertical cursor guide line -->
+                  @if (hoveredTrendIndex() !== null) {
+                    <line 
+                      [attr.x1]="last6MonthsSpending().points[hoveredTrendIndex()!].x" 
+                      [attr.y1]="last6MonthsSpending().paddingTop" 
+                      [attr.x2]="last6MonthsSpending().points[hoveredTrendIndex()!].x" 
+                      [attr.y2]="last6MonthsSpending().height - last6MonthsSpending().paddingBottom" 
+                      stroke="#8b5cf6" 
+                      stroke-dasharray="2 2" 
+                      stroke-width="1.5"
+                      class="pointer-events-none"
+                    />
+                  }
+
+                  <!-- Connection/data point vertices dots -->
+                  @for (pt of last6MonthsSpending().points; track pt.index) {
+                    <g>
+                      <circle 
+                        [attr.cx]="pt.x" 
+                        [attr.cy]="pt.y" 
+                        [attr.r]="hoveredTrendIndex() === pt.index ? 8 : 4.5" 
+                        [attr.fill]="hoveredTrendIndex() === pt.index ? '#c084fc' : '#8b5cf6'" 
+                        [attr.stroke]="hoveredTrendIndex() === pt.index ? '#ffffff' : '#1e1b4b'" 
+                        [attr.stroke-width]="hoveredTrendIndex() === pt.index ? 2 : 1.5"
+                        class="transition-all duration-200"
+                      />
+                    </g>
+                  }
+
+                  <!-- X-Axis text names -->
+                  @for (pt of last6MonthsSpending().points; track pt.index) {
+                    <text 
+                      [attr.x]="pt.x" 
+                      [attr.y]="last6MonthsSpending().height - last6MonthsSpending().paddingBottom + 16" 
+                      text-anchor="middle" 
+                      class="fill-slate-400 font-mono text-[9px] select-none"
+                    >
+                      {{ pt.label }}
+                    </text>
+                  }
+
+                  <!-- Responsive hover hitbox overlays -->
+                  @for (pt of last6MonthsSpending().points; track pt.index) {
+                    <rect 
+                      [attr.x]="pt.x - 25" 
+                      [attr.y]="last6MonthsSpending().paddingTop" 
+                      [attr.width]="50" 
+                      [attr.height]="last6MonthsSpending().height - last6MonthsSpending().paddingTop - last6MonthsSpending().paddingBottom" 
+                      fill="transparent" 
+                      class="cursor-crosshair"
+                      (mouseenter)="hoveredTrendIndex.set(pt.index)" 
+                      (mouseleave)="hoveredTrendIndex.set(null)"
+                    />
+                  }
+                </svg>
+              </div>
+
+              <div class="flex justify-between items-center text-[10px] text-slate-500 mt-3 border-t border-slate-700/40 pt-2.5">
+                <span class="flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                  Dynamic Trend tracking active
+                </span>
+                <span>Past 6 Calendar Months</span>
+              </div>
+            </div>
+
           </div>
 
           <!-- Quick Recent Ledger View Preview -->
@@ -586,6 +737,20 @@
 
           <!-- Functional Filtering Controls -->
           <div class="flex flex-wrap items-center gap-2.5">
+            
+            <!-- Wipe Simulator Data action -->
+            @if (engine.transactions().length > 0) {
+              <button 
+                type="button" 
+                (click)="clearAllLedgerData()"
+                class="hover:bg-red-500/10 hover:text-red-400 border border-slate-700 hover:border-red-500/30 text-slate-400 text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
+                title="Wipe all entries and start with a completely empty ledger"
+                id="wipe_all_data_btn"
+              >
+                <span class="material-icons text-sm">delete_sweep</span>
+                Wipe Simulator Data
+              </button>
+            }
             
             <!-- Notes Search Input -->
             <div class="relative w-full sm:w-48">
@@ -823,155 +988,658 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/60 pb-5">
           <div>
             <h2 class="text-base font-bold text-white flex items-center gap-2">
-              <span class="material-icons text-violet-400 animate-pulse">insights</span>
-              Aether-2.5 AI Financial Wealth Coach
+              <span class="material-icons text-violet-400 animate-pulse font-bold">insights</span>
+              Aether AI Financial Coach & SMART Planner
             </h2>
-            <p class="text-xs text-slate-400 mt-1">Harness Deep Generative AI models to analyze logs, forecast next month, and gain strategic assets</p>
+            <p class="text-xs text-slate-400 mt-1">Harness advanced predictive modeling to forecast balances, capture seasonality, and map SMART goal pathways.</p>
           </div>
+        </div>
 
+        <!-- Sub-navigation selector -->
+        <div class="flex border-b border-slate-700/60 pb-1.5 gap-6 mb-6">
           <button 
-            type="button" 
-            (click)="fetchAIInsights()"
-            [disabled]="engine.aiLoading()"
-            class="inline-flex items-center gap-1.5 px-4.5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-violet-950/25 hover:from-violet-500 hover:to-indigo-500 active:scale-95 disabled:opacity-50 hover:shadow-violet-500/25 duration-200 transition cursor-pointer"
-            id="update_ai_insights_btn"
+            type="button"
+            (click)="activeSubTab.set('predictions')"
+            [class]="activeSubTab() === 'predictions' ? 'text-xs uppercase font-extrabold pb-2.5 text-violet-400 border-b-2 border-violet-500 tracking-wider transition-all duration-150' : 'text-xs uppercase font-bold pb-2.5 text-slate-400 hover:text-slate-200 tracking-wider transition-all duration-150 cursor-pointer'"
+            id="subtab_predictions_btn"
           >
-            @if (engine.aiLoading()) {
-              <!-- Loading wave spinner -->
-              <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Thinking...
-            } @else {
-              <span class="material-icons text-sm">auto_awesome</span>
-              Generate Realtime Insights
-            }
+            Predictive Spending & Seasonality
+          </button>
+          <button 
+            type="button"
+            (click)="activeSubTab.set('goals')"
+            [class]="activeSubTab() === 'goals' ? 'text-xs uppercase font-extrabold pb-2.5 text-violet-400 border-b-2 border-violet-500 tracking-wider transition-all duration-150' : 'text-xs uppercase font-bold pb-2.5 text-slate-400 hover:text-slate-200 tracking-wider transition-all duration-150 cursor-pointer'"
+            id="subtab_goals_btn"
+          >
+            SMART Goal Centre
           </button>
         </div>
 
-        @if (engine.aiError()) {
-          <div class="bg-red-500/10 border border-red-500/20 text-red-300 p-4 rounded-xl text-xs flex gap-2.5">
-            <span class="material-icons text-base">error</span>
-            <div>
-              <strong>Advisory Generation Error:</strong> {{ engine.aiError() }}
-              <p class="text-[10px] text-slate-400 mt-1">Please ensure your Gemini API Key is linked in the settings drawer.</p>
+        <!-- SUB TAB 1: PREDICTIVE BUDGETING & INSIGHTS -->
+        @if (activeSubTab() === 'predictions') {
+          <div class="space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h3 class="text-sm font-bold text-slate-200">Predictive Month-Ahead Forecasting</h3>
+                <p class="text-xs text-slate-400">Uses machine-learning context structures to evaluate spending velocities and upcoming recurring charges.</p>
+              </div>
+              <button 
+                type="button" 
+                (click)="fetchAIInsights()"
+                [disabled]="engine.aiLoading()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-xs uppercase tracking-wider hover:from-violet-500 hover:to-indigo-500 active:scale-95 disabled:opacity-50 transition cursor-pointer shadow-md"
+                id="update_ai_insights_btn"
+              >
+                @if (engine.aiLoading()) {
+                  <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Calculating...
+                } @else {
+                  <span class="material-icons text-sm">auto_awesome</span>
+                  Generate Forecast Report
+                }
+              </button>
             </div>
+
+            @if (engine.aiError()) {
+              <div class="bg-red-500/10 border border-red-500/20 text-red-300 p-4 rounded-xl text-xs flex gap-2.5" id="insights_error_banner">
+                <span class="material-icons text-base">error</span>
+                <div>
+                  <strong>Prediction Engine Error:</strong> {{ engine.aiError() }}
+                  <p class="text-[10px] text-slate-400 mt-1">Please ensure your GEMINI_API_KEY is active.</p>
+                </div>
+              </div>
+            }
+
+            @if (engine.aiInsights(); as report) {
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Details: narrative & predictive math -->
+                <div class="lg:col-span-12 xl:col-span-7 space-y-6">
+                  
+                  <!-- Bento forecasting details block -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 relative overflow-hidden" id="card_predicted_expense_metric">
+                      <div class="absolute right-3 top-3 text-[10px] uppercase font-bold tracking-widest text-slate-500">Forecasting</div>
+                      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Projected Expenses</span>
+                      <div class="text-3xl font-mono font-bold text-white">
+                        ${{ report.projectedExpense ? report.projectedExpense.toFixed(2) : '1,250.00' }}
+                      </div>
+                      <p class="text-[10px] text-slate-400 leading-normal">
+                        Based on seasonality index patterns and active subscription commitments.
+                      </p>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 relative overflow-hidden" 
+                      [class.border-red-500/30]="report.isDeficit"
+                      [class.border-emerald-500/30]="!report.isDeficit"
+                      id="card_predicted_outcome_metric"
+                    >
+                      <span class="text-[10px] font-bold uppercase tracking-wider block"
+                        [class.text-red-400]="report.isDeficit"
+                        [class.text-emerald-400]="!report.isDeficit"
+                      >
+                        {{ report.isDeficit ? 'Predicted Deficit Spike' : 'Predicted Savings Surplus' }}
+                      </span>
+                      <div class="text-3xl font-mono font-bold"
+                        [class.text-red-400]="report.isDeficit"
+                        [class.text-emerald-400]="!report.isDeficit"
+                      >
+                        ${{ report.projectedSurplusDeficit ? report.projectedSurplusDeficit.toFixed(2) : '250.00' }}
+                      </div>
+                      <p class="text-[10px] text-slate-400 leading-normal">
+                        {{ report.isDeficit ? 'High Deficit Risk! Spending velocity exceeds budget ceiling bounds.' : 'Surplus tracked! Net surplus parameters within safe thresholds.' }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Seasonality text insights -->
+                  <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow" id="seasonality_insights_card">
+                    <h3 class="text-xs font-bold text-violet-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <span class="material-icons text-violet-400 text-sm">calendar_month</span>
+                      Seasonality Trend Analysis
+                    </h3>
+                    <p class="text-xs leading-relaxed text-slate-300">
+                      {{ report.seasonalityInsights || 'Our models detected typical utility bills cycling alongside annual platform renewals. Keeping shopping parameters low reduces summer margin risks.' }}
+                    </p>
+                  </div>
+
+                  <!-- Narrative summary -->
+                  <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow font-medium" id="cohesive_outlook_card">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <span class="material-icons text-slate-400 text-sm">summarize</span>
+                      Dynamic Health Check
+                    </h3>
+                    <p class="text-xs leading-relaxed text-slate-200">
+                      {{ report.monthlySummary }}
+                    </p>
+                  </div>
+
+                  <!-- Predictions paragraph -->
+                  <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow leading-normal" id="future_trajectory_card">
+                    <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <span class="material-icons text-indigo-400 text-sm">troubleshoot</span>
+                      Future Spending Outlook
+                    </h3>
+                    <p class="text-xs text-slate-300">
+                      {{ report.prediction }}
+                    </p>
+                  </div>
+
+                </div>
+
+                <!-- Right Details: recommendations list & pattern markers -->
+                <div class="lg:col-span-12 xl:col-span-5 space-y-6">
+                  
+                  <!-- Recommendations list -->
+                  <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow" id="tactical_recommendations_card">
+                    <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <span class="material-icons text-amber-400 text-sm">emoji_objects</span>
+                      AI Spending Corrections
+                    </h3>
+                    
+                    <div class="space-y-2.5">
+                      @for (rec of report.recommendations; track rec) {
+                        <div class="flex gap-2 text-xs text-slate-200">
+                          <span class="text-amber-400 shrink-0 font-bold">▶</span>
+                          <p class="leading-normal text-slate-300">{{ rec }}</p>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Behavioral insights -->
+                  <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow" id="behavioral_markers_card">
+                    <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <span class="material-icons text-emerald-400 text-sm">assignment_ind</span>
+                      Behavioral Pattern Monitors
+                    </h3>
+
+                    <div class="space-y-3">
+                      @for (insight of report.insights; track insight.title) {
+                        <div class="p-3 bg-slate-950/60 rounded-xl text-xs space-y-1">
+                          <div class="flex items-center gap-1.5">
+                            <span class="material-icons text-sm" 
+                              [class.text-emerald-400]="insight.severity === 'good'"
+                              [class.text-amber-400]="insight.severity === 'warning'"
+                              [class.text-blue-400]="insight.severity === 'info'"
+                            >
+                              lens
+                            </span>
+                            <span class="font-bold text-slate-100 text-[11px]">{{ insight.title }}</span>
+                          </div>
+                          <p class="text-slate-400 text-[11px] leading-relaxed">{{ insight.text }}</p>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            } @else {
+              <!-- Empty predictions state -->
+              <div class="text-center py-16 bg-slate-900/50 rounded-2xl border border-dashed border-slate-700/80" id="empty_predictions_screen">
+                <div class="w-14 h-14 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center mx-auto mb-4">
+                  <span class="material-icons text-3xl">auto_awesome</span>
+                </div>
+                <h3 class="text-sm font-bold text-white mb-1">Generate Predictive Spending Analysis</h3>
+                <p class="text-xs text-slate-400 max-w-sm mx-auto mb-6">Aggregate category trend matrices, forecast upcoming limits, and identify net deficiencies dynamically using AI models.</p>
+                
+                <button 
+                  type="button"
+                  (click)="fetchAIInsights()" 
+                  [disabled]="engine.aiLoading()"
+                  class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs uppercase tracking-wider shadow-md transition disabled:opacity-50 cursor-pointer"
+                  id="empty_generate_btn"
+                >
+                  @if (engine.aiLoading()) {
+                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Simulating Trajectories...
+                  } @else {
+                    <span class="material-icons text-sm">auto_awesome</span>
+                    Run Cognitive AI Forecast
+                  }
+                </button>
+              </div>
+            }
           </div>
         }
 
-        @if (engine.aiInsights(); as report) {
-          
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            <!-- Left Narrative & Predictions -->
-            <div class="lg:col-span-7 space-y-6">
+        <!-- SUB TAB 2: SMART GOAL REGISTER -->
+        @if (activeSubTab() === 'goals') {
+          <div class="space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 class="text-sm font-bold text-slate-200">SMART Financial Goal Centre</h3>
+                <p class="text-xs text-slate-400">Map specific, measurable, achievable, relevant, and time-bound goals with integrated AI budget adjusting and progress tracking.</p>
+              </div>
               
-              <!-- Report Overview Section -->
-              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow">
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                  <span class="material-icons text-violet-400 text-sm">notes</span>
-                  Current Period Summary
-                </h3>
-                <p class="text-sm leading-relaxed text-slate-200 font-medium">
-                  {{ report.monthlySummary }}
-                </p>
-              </div>
-
-              <!-- Predictions and Forecasting -->
-              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow">
-                <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                  <span class="material-icons text-emerald-400 text-sm">batch_prediction</span>
-                  Month-Ahead Spending Predictions
-                </h3>
-                <p class="text-xs leading-relaxed text-slate-300">
-                  {{ report.prediction }}
-                </p>
-                <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-3 text-[11px] text-slate-400 leading-relaxed mt-4">
-                  <strong>💡 Advisor's Rule of Survival:</strong> The forecast parses historical recurrence ratios. Setting stricter caps reduces upcoming model variances.
-                </div>
-              </div>
-
+              <button 
+                type="button"
+                (click)="showAddGoalForm.set(!showAddGoalForm())"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer shadow-md"
+                id="toggle_add_goal_form_btn"
+              >
+                <span class="material-icons text-sm">{{ showAddGoalForm() ? 'expand_less' : 'add' }}</span>
+                {{ showAddGoalForm() ? 'Close Form' : 'Define SMART Goal' }}
+              </button>
             </div>
 
-            <!-- Right Tactical Lists and Segment Markers -->
-            <div class="lg:col-span-5 space-y-6">
-              
-              <!-- Recommendations list -->
-              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow flex flex-col justify-between">
-                <div>
-                  <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
-                    <span class="material-icons text-amber-400 text-sm">stars</span>
-                    AI Tactical Recommendations
-                  </h3>
-                  
-                  <div class="space-y-3">
-                    @for (rec of report.recommendations; track rec) {
-                      <div class="flex gap-2 text-xs text-slate-200">
-                        <span class="text-emerald-400 shrink-0 font-bold">▶</span>
-                        <p class="leading-normal">{{ rec }}</p>
-                      </div>
-                    }
-                  </div>
-                </div>
-              </div>
-
-              <!-- General Pattern Insights -->
-              <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow">
-                <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
-                  <span class="material-icons text-indigo-400 text-sm">network_check</span>
-                  Behavourial Pattern Markers
-                </h3>
-
-                <div class="space-y-3">
-                  @for (insight of report.insights; track insight.title) {
-                    <div class="p-3 bg-slate-950 rounded-xl text-xs space-y-1">
-                      <div class="flex items-center gap-1.5">
-                        <span class="material-icons text-sm" 
-                          [class.text-emerald-400]="insight.severity === 'good'"
-                          [class.text-amber-400]="insight.severity === 'warning'"
-                          [class.text-blue-400]="insight.severity === 'info'"
-                        >
-                          circle
-                        </span>
-                        <span class="font-bold text-slate-100 text-[11px]">{{ insight.title }}</span>
-                      </div>
-                      <p class="text-slate-400 text-[11px] leading-relaxed">{{ insight.text }}</p>
+            <!-- SMART Goal Form -->
+            @if (showAddGoalForm()) {
+              <div class="bg-slate-900 border border-slate-700/60 rounded-2xl p-5 space-y-4" id="smart_goal_form_card">
+                <h4 class="text-xs font-extrabold text-violet-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <span class="material-icons text-xs text-violet-400">playlist_add</span>
+                  Establish Smart Financial Commitment Target
+                </h4>
+                
+                <form [formGroup]="goalForm" (ngSubmit)="submitGoal()" class="space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <!-- Name -->
+                    <div class="md:col-span-5 space-y-1">
+                      <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">Goal Name</span>
+                      <input 
+                        type="text" 
+                        formControlName="name" 
+                        placeholder="e.g. Emergency Safety Fund" 
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-violet-500 focus:outline-none placeholder-slate-600"
+                        id="goal_input_name"
+                      />
                     </div>
-                  }
+
+                    <!-- Category -->
+                    <div class="md:col-span-3 space-y-1">
+                      <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">Category</span>
+                      <select 
+                        formControlName="category" 
+                        class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-violet-500 focus:outline-none"
+                        id="goal_input_category"
+                      >
+                        <option value="Savings">Savings Pool</option>
+                        <option value="Debt Payoff">Debt Payoff Clearance</option>
+                        <option value="Investment">Asset Investment</option>
+                        <option value="Purchase">Major Purchase</option>
+                      </select>
+                    </div>
+
+                    <!-- Target Date -->
+                    <div class="md:col-span-4 space-y-1 flex flex-col justify-end">
+                      <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider block mb-1">Target Date</span>
+                      <input 
+                        type="date" 
+                        formControlName="targetDate" 
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-violet-500 focus:outline-none"
+                        id="goal_input_date"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Target amount -->
+                    <div class="space-y-1">
+                      <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">Target Goal Amount ($)</span>
+                      <input 
+                        type="number" 
+                        formControlName="targetAmount" 
+                        placeholder="e.g. 5000" 
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-violet-500 focus:outline-none placeholder-slate-600"
+                        id="goal_input_target_amount"
+                      />
+                    </div>
+
+                    <!-- Current amount -->
+                    <div class="space-y-1">
+                      <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">Current Saved Amount ($)</span>
+                      <input 
+                        type="number" 
+                        formControlName="currentAmount" 
+                        placeholder="e.g. 500" 
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-violet-500 focus:outline-none placeholder-slate-600"
+                        id="goal_input_current_amount"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="p-3 bg-slate-950/40 border border-slate-800 rounded-xl space-y-3.5">
+                    <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest block">SMART Parameter Validation Questionnaire</span>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 block pb-0.5">S - Specific (What will this money specifically cover?)</span>
+                        <textarea 
+                          formControlName="smartSpecific" 
+                          placeholder="e.g. Cover exactly 3 months of emergency apartment rent and standard utilities." 
+                          rows="2"
+                          class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:border-violet-500 focus:outline-none placeholder-slate-650"
+                          id="goal_input_smart_specific"
+                        ></textarea>
+                      </div>
+
+                      <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 block pb-0.5">M - Measurable (How will success be recorded?)</span>
+                        <textarea 
+                          formControlName="smartMeasurable" 
+                          placeholder="e.g. Save $5,000 balance in our highly visible offline ledger savings pool." 
+                          rows="2"
+                          class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:border-violet-500 focus:outline-none placeholder-slate-650"
+                          id="goal_input_smart_measurable"
+                        ></textarea>
+                      </div>
+
+                      <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 block pb-0.5">A - Achievable (How is this realistic to save?)</span>
+                        <textarea 
+                          formControlName="smartAchievable" 
+                          placeholder="e.g. Pitch surplus cash of $300 a month to savings from dining caps." 
+                          rows="2"
+                          class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:border-violet-500 focus:outline-none placeholder-slate-650"
+                          id="goal_input_smart_achievable"
+                        ></textarea>
+                      </div>
+
+                      <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 block pb-0.5">R - Relevant (Why is this critical today?)</span>
+                        <textarea 
+                          formControlName="smartRelevant" 
+                          placeholder="e.g. Eliminates reliance on credit cards or high-interest cash advances." 
+                          rows="2"
+                          class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:border-violet-500 focus:outline-none placeholder-slate-650"
+                          id="goal_input_smart_relevant"
+                        ></textarea>
+                      </div>
+                    </div>
+
+                    <div class="space-y-1">
+                      <span class="text-[10px] font-bold text-slate-400 block pb-0.5">T - Time-Bound (What is the precise timeline limit?)</span>
+                      <textarea 
+                        formControlName="smartTimeBound" 
+                        placeholder="e.g. Full balance must be achieved before Dec 31, 2026." 
+                        rows="2"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:border-violet-500 focus:outline-none placeholder-slate-650"
+                        id="goal_input_smart_timebound"
+                      ></textarea>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end gap-3.5">
+                    <button 
+                      type="button" 
+                      (click)="showAddGoalForm.set(false)" 
+                      class="px-4 py-2.5 rounded-xl text-xs text-slate-400 hover:text-white border border-slate-800 hover:bg-slate-950 transition cursor-pointer"
+                      id="cancel_goal_btn"
+                    >
+                      Cancel
+                    </button>
+                    
+                    <button 
+                      type="submit" 
+                      [disabled]="goalForm.invalid"
+                      class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-95 disabled:opacity-50 transition cursor-pointer"
+                      id="submit_goal_btn"
+                    >
+                      Create SMART Target
+                    </button>
+                  </div>
+                </form>
+              </div>
+            }
+
+            @if (engine.goalsError()) {
+              <div class="bg-red-500/10 border border-red-500/20 text-red-300 p-4 rounded-xl text-xs flex gap-2.5" id="goals_error_banner">
+                <span class="material-icons text-base">error</span>
+                <div>
+                  <strong>Goal Advisor Error:</strong> {{ engine.goalsError() }}
+                  <p class="text-[10px] text-slate-400 mt-1">Check database schemas or your key configurations.</p>
                 </div>
               </div>
+            }
 
-            </div>
+            <!-- Goals grid list -->
+            @if (engine.goals().length > 0) {
+              <div class="grid grid-cols-1 gap-6">
+                @for (goal of engine.goals(); track goal.id) {
+                  <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-6 relative overflow-hidden" [id]="'goal_card_' + goal.id">
+                    
+                    <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <!-- Title & Badge -->
+                      <div class="space-y-1.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-violet-500/15 border border-violet-500/20 text-[9px] font-bold text-violet-400 uppercase tracking-widest">
+                            <span class="material-icons text-[10px]">track_changes</span>
+                            {{ goal.category }}
+                          </span>
+                          @if (goal.status === 'completed') {
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/20 text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
+                              <span class="material-icons text-[10px]">done</span>
+                              Completed
+                            </span>
+                          } @else if (goal.status === 'paused') {
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-500/15 border border-slate-500/20 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                              <span class="material-icons text-[10px]">pause</span>
+                              Paused
+                            </span>
+                          } @else {
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/20 text-[9px] font-bold text-blue-400 uppercase tracking-widest">
+                              <span class="material-icons text-[10px]">trending_up</span>
+                              Pacing
+                            </span>
+                          }
+                        </div>
+                        <h4 class="text-base font-bold text-white flex items-center gap-2">
+                          {{ goal.name }}
+                        </h4>
+                      </div>
 
-          </div>
+                      <!-- Control Actions -->
+                      <div class="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+                        <button 
+                          type="button" 
+                          (click)="changeFinancialGoalStatus(goal.id, goal.status === 'paused' ? 'in_progress' : 'paused')"
+                          class="p-2 rounded-xl text-[10px] font-bold text-slate-300 border border-slate-800 hover:bg-slate-950 transition cursor-pointer flex items-center gap-1"
+                          [title]="goal.status === 'paused' ? 'Activate Goal progress' : 'Pause Goal tracker'"
+                          [id]="'pause_btn_' + goal.id"
+                        >
+                          <span class="material-icons text-sm">{{ goal.status === 'paused' ? 'play_arrow' : 'pause' }}</span>
+                          {{ goal.status === 'paused' ? 'Resume' : 'Pause' }}
+                        </button>
+                        
+                        <button 
+                          type="button" 
+                          (click)="deleteFinancialGoal(goal.id)"
+                          class="p-2 rounded-xl text-[10px] font-bold text-red-400 border border-slate-800 hover:border-red-500/20 hover:bg-red-500/10 transition cursor-pointer flex items-center gap-1"
+                          title="Delete SMART goal"
+                          [id]="'delete_btn_' + goal.id"
+                        >
+                          <span class="material-icons text-sm">delete</span>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
 
-        } @else {
-          <!-- Empty AI insights landing card -->
-          <div class="text-center py-16 bg-slate-900/50 rounded-2xl border border-dashed border-slate-700">
-            <div class="w-16 h-16 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center mx-auto mb-4">
-              <span class="material-icons text-3xl">auto_awesome</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-1">Generate AI Portfolio Intelligence Report</h3>
-            <p class="text-xs text-slate-400 max-w-sm mx-auto mb-6">Let Aether Coach parse your active balance ledger, run category histories, check limits, and output personalized summaries and predictions.</p>
-            
-            <button 
-              (click)="fetchAIInsights()" 
-              [disabled]="engine.aiLoading()"
-              class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs uppercase tracking-wider shadow-md transition disabled:opacity-50 cursor-pointer"
-              id="initial_generate_ai_btn"
-            >
-              @if (engine.aiLoading()) {
-                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing database...
-              } @else {
-                <span class="material-icons text-sm">auto_awesome</span>
-                Run Cognitive Analysis
-              }
-            </button>
+                    <!-- Progress Bar & Target Metrics -->
+                    <div class="p-4 bg-slate-950/60 border border-slate-850 rounded-2xl space-y-3.5">
+                      <div class="flex justify-between items-center text-xs">
+                        <div class="space-y-1">
+                          <span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Vault Balance</span>
+                          <div class="text-lg font-mono font-bold text-slate-200">
+                            ${{ goal.currentAmount.toFixed(2) }} <span class="text-slate-500 text-xs font-normal">of ${{ goal.targetAmount.toFixed(2) }}</span>
+                          </div>
+                        </div>
+
+                        <div class="text-right space-y-1">
+                          <span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Completion target</span>
+                          <div class="text-xs text-slate-300 flex items-center justify-end gap-1 font-medium">
+                            <span class="material-icons text-xs text-slate-400">event</span>
+                            {{ goal.targetDate }}
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Progress range tracking -->
+                      <div class="space-y-1.5">
+                        <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            class="h-full bg-gradient-to-r from-violet-500 to-emerald-400 rounded-full transition-all duration-300"
+                            [style.width.%]="(goal.currentAmount / goal.targetAmount) * 100"
+                          ></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                          <span>0% started</span>
+                          <span class="text-slate-300 font-bold">{{ Math.min(Math.round((goal.currentAmount / goal.targetAmount) * 100), 100) }}% complete</span>
+                          <span>100% target</span>
+                        </div>
+                      </div>
+
+                      <!-- Progress Modifier slider -->
+                      <div class="pt-2 border-t border-slate-850/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-2">
+                          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 font-sans">Modify balance:</span>
+                          <input 
+                            type="range" 
+                            [min]="0" 
+                            [max]="goal.targetAmount" 
+                            [value]="goal.currentAmount"
+                            #slider
+                            (input)="updateFinancialGoalAmount(goal.id, +slider.value)"
+                            class="w-32 sm:w-48 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500"
+                            [id]="'slider_input_' + goal.id"
+                          />
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 font-sans">Set manual $:</span>
+                          <input 
+                            type="number" 
+                            [value]="goal.currentAmount"
+                            #numInput
+                            (change)="updateFinancialGoalAmount(goal.id, +numInput.value)"
+                            class="w-16 px-1.5 py-1 text-center bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none"
+                            [id]="'num_input_' + goal.id"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- SMART parameters specifications list -->
+                    <div class="space-y-2 border-t border-slate-850 pt-4">
+                      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">SMART Evaluation Framework Parameters</span>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                        <div class="p-3 bg-slate-950/40 rounded-xl space-y-1">
+                          <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">S - Specific</span>
+                          <p class="text-[10px] text-slate-300 leading-relaxed">{{ goal.smartSpecific }}</p>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 rounded-xl space-y-1">
+                          <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">M - Measurable</span>
+                          <p class="text-[10px] text-slate-300 leading-relaxed">{{ goal.smartMeasurable }}</p>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 rounded-xl space-y-1">
+                          <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">A - Achievable</span>
+                          <p class="text-[10px] text-slate-300 leading-relaxed">{{ goal.smartAchievable }}</p>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 rounded-xl space-y-1">
+                          <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">R - Relevant</span>
+                          <p class="text-[10px] text-slate-300 leading-relaxed">{{ goal.smartRelevant }}</p>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 rounded-xl space-y-1">
+                          <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">T - Time-Bound</span>
+                          <p class="text-[10px] text-slate-300 leading-relaxed">{{ goal.smartTimeBound }}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- AI Advice & Strategic Adjustment Area -->
+                    <div class="pt-4 border-t border-slate-850 space-y-3.5">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest block font-sans">AETHER PREDICTIVE ADVISORY</span>
+                        
+                        <button 
+                          type="button" 
+                          (click)="fetchFinancialGoalAdvice(goal.id)"
+                          [disabled]="goal.loadingAdvice"
+                          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50 transition cursor-pointer uppercase tracking-wider"
+                          [id]="'get_advice_btn_' + goal.id"
+                        >
+                          @if (goal.loadingAdvice) {
+                            <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Analyzing...
+                          } @else if (goal.aiAdvice) {
+                            <span class="material-icons text-xs font-bold">refresh</span>
+                            Re-Calculate AI Plan
+                          } @else {
+                            <span class="material-icons text-xs font-bold font-sans">auto_awesome</span>
+                            Build AI Strategic Plan
+                          }
+                        </button>
+                      </div>
+
+                      @if (goal.aiAdvice) {
+                        <div class="bg-violet-950/15 border border-violet-500/20 rounded-2xl p-4 sm:p-5 space-y-4" [id]="'advice_panel_' + goal.id">
+                          <div class="flex items-start gap-2.5">
+                            <span class="material-icons text-violet-400 text-lg mt-0.5">psychology</span>
+                            <div class="space-y-1">
+                              <strong class="text-xs text-violet-300">Personalized Goal Coaching strategy:</strong>
+                              <p class="text-xs leading-normal text-slate-300 font-sans font-medium">{{ goal.aiAdvice }}</p>
+                            </div>
+                          </div>
+
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3.5 border-t border-violet-500/10">
+                            <!-- Progress tracking timeline math -->
+                            <div class="space-y-1.5">
+                              <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">AI Velocity & Target Tracker</span>
+                              <p class="text-[11px] leading-relaxed text-slate-300 font-sans">{{ goal.aiProgressTracking }}</p>
+                            </div>
+
+                            <!-- Suggested budget adjustments -->
+                            <div class="space-y-2">
+                              <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Suggested Category Limit Adaptations</span>
+                              <div class="space-y-1.5">
+                                @for (adj of goal.aiSuggestedBudgetAdjustments; track adj) {
+                                  <div class="flex items-start gap-1.5 text-[11px] text-slate-300 font-sans">
+                                    <span class="material-icons text-xs text-violet-400 mt-0.5 font-bold">check_circle_outline</span>
+                                    <span>{{ adj }}</span>
+                                  </div>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      } @else {
+                        <div class="p-4 bg-slate-950/30 rounded-2xl text-center text-xs text-slate-500">
+                          Click "Build AI Strategic Plan" above to analyze your progress pacing using safe predictive pipelines.
+                        </div>
+                      }
+                    </div>
+
+                  </div>
+                }
+              </div>
+            } @else {
+              <!-- Empty Goals Grid standard layout -->
+              <div class="text-center py-16 bg-slate-900/50 rounded-2xl border border-dashed border-slate-700/80" id="empty_goals_screen">
+                <div class="w-14 h-14 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center mx-auto mb-4">
+                  <span class="material-icons text-3xl font-bold">track_changes</span>
+                </div>
+                <h3 class="text-sm font-bold text-white mb-1">Define your first SMART financial goal</h3>
+                <p class="text-xs text-slate-400 max-w-sm mx-auto mb-6">Create explicit targets validated with S.M.A.R.T definitions to claim complete tracking control backed by personalized AI strategies.</p>
+                
+                <button 
+                  type="button" 
+                  (click)="showAddGoalForm.set(true)"
+                  class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer shadow-md font-sans"
+                  id="empty_define_goal_btn"
+                >
+                  <span class="material-icons text-sm">add</span>
+                  Define SMART Goal Card
+                </button>
+              </div>
+            }
           </div>
         }
 
@@ -1299,11 +1967,15 @@
 
         <div class="mb-5 flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-            <span class="material-icons text-xl">cloud_sync</span>
+            <span class="material-icons text-xl">account_circle</span>
           </div>
           <div>
-            <h3 class="text-base font-bold text-white">Unlock Secure Cloud Sync</h3>
-            <p class="text-xs text-slate-400">Save data to Firestore and access across multiple devices</p>
+            <h3 class="text-base font-bold text-white">
+              {{ authMode() === 'login' ? 'Sign In to Your Portfolio' : 'Create New Account' }}
+            </h3>
+            <p class="text-xs text-slate-400">
+              {{ authMode() === 'login' ? 'Access your synchronized transactions & smart goals' : 'Start with a clean ledger and fill in your details!' }}
+            </p>
           </div>
         </div>
 
@@ -1327,7 +1999,7 @@
             class="py-1.5 rounded-lg transition cursor-pointer"
             id="auth_mode_login_btn"
           >
-            Access Account
+            Sign In
           </button>
           <button 
             (click)="authMode.set('signUp')"
@@ -1335,7 +2007,7 @@
             class="py-1.5 rounded-lg transition cursor-pointer"
             id="auth_mode_signup_btn"
           >
-            Create Sandbox
+            Sign Up
           </button>
         </div>
 
@@ -1343,7 +2015,7 @@
         <form [formGroup]="authForm" (ngSubmit)="onAuthSubmit()" class="space-y-4">
           
           <div>
-            <label for="auth_email" class="text-xs font-semibold text-slate-400 block mb-1">Email Coordinates</label>
+            <label for="auth_email" class="text-xs font-semibold text-slate-400 block mb-1">Email Address</label>
             <input 
               type="email" 
               id="auth_email"
@@ -1352,12 +2024,12 @@
               class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
             />
             @if (authForm.get('email')?.invalid && authForm.get('email')?.touched) {
-              <span class="text-[10px] text-red-400 mt-1 block">Valid Email layout required.</span>
+              <span class="text-[10px] text-red-400 mt-1 block">Valid Email address is required.</span>
             }
           </div>
 
           <div>
-            <label for="auth_password" class="text-xs font-semibold text-slate-400 block mb-1">Passphrase</label>
+            <label for="auth_password" class="text-xs font-semibold text-slate-400 block mb-1">Password</label>
             <input 
               type="password" 
               id="auth_password"
@@ -1376,12 +2048,27 @@
             class="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/10 active:scale-95 duration-150 transition disabled:opacity-50 disabled:pointer-events-none cursor-pointer text-center"
             id="auth_submit_btn"
           >
-            {{ authMode() === 'login' ? 'Confirm Account Link' : 'Initialize Cloud Sandbox' }}
+            {{ authMode() === 'login' ? 'Sign In to Account' : 'Create New Account' }}
           </button>
+
+          <!-- Toggle message link below the main button -->
+          <div class="text-center text-[11px] text-slate-400 mt-2">
+            @if (authMode() === 'login') {
+              Don't have an account yet? 
+              <button type="button" (click)="authMode.set('signUp')" class="text-emerald-400 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer">
+                Sign Up Now
+              </button>
+            } @else {
+              Already have an account? 
+              <button type="button" (click)="authMode.set('login')" class="text-emerald-400 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer">
+                Sign In Instead
+              </button>
+            }
+          </div>
 
           <!-- Divider line -->
           <div class="relative py-2 text-center text-[10px] uppercase font-bold text-slate-500">
-            <span class="bg-slate-800 px-3 relative z-10">Or Quick Preview</span>
+            <span class="bg-slate-800 px-3 relative z-10">Or Demo Exploration</span>
             <div class="absolute inset-y-1/2 left-0 right-0 h-px bg-slate-700/50"></div>
           </div>
 
@@ -1392,7 +2079,7 @@
             class="w-full py-2.5 px-4 rounded-xl border border-slate-600 hover:border-slate-400 bg-slate-800 text-slate-300 font-bold text-xs hover:text-white transition cursor-pointer text-center"
             id="auth_sandbox_btn"
           >
-            🔑 Explore Demo Sandbox (Link Instantly)
+            🔑 Log In to demo Sandbox Account
           </button>
 
         </form>

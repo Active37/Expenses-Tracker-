@@ -36,14 +36,20 @@ app.post('/api/ai-insights', async (req, res) => {
     ).join('\n');
 
     const prompt = `
-You are an expert financial advisor and AI wealth coach.
-Analyze the following user's financial transactions and monthly budget, then provide clear, highly personalized financial insights, next-month budget predictions, and tactical recommendations.
+You are an expert financial advisor and AI wealth coach specializing in predictive spending analysis, behavioral statistics, and localized budgetary seasonality.
+Analyze the user's financial transactions historical record and monthly budget limits.
 
 Monthly Budget Limit: $${budget || 0}
 Transactions list:
 ${formattedTransactions || 'No transactions recorded yet.'}
 
-Provide your response in the following strict JSON format (do not use any other fields, do not include markdown codes, just return valid raw JSON):
+Consider:
+- Seasonality: e.g. utility fluctuations, recurring quarterly/annual payments, holiday spikes, summer spending.
+- Recurrence patterns and spending velocity context.
+- Projected future monthly expenses (give an exact projected number).
+- Projected monthly net income and calculate next month's deficit or surplus against their budget ($${budget || 0}).
+
+Provide your response in the following strict JSON format (do not use any other fields, do not include markdown blocks or codes, just return valid raw JSON):
 {
   "monthlySummary": "A cohesive, professional 2-3 sentence overview of this month's budget tracking and general performance.",
   "recommendations": [
@@ -58,7 +64,11 @@ Provide your response in the following strict JSON format (do not use any other 
       "text": "Detailed explanation of a warning, healthy pattern, or trend.",
       "severity": "warning" // 'good' | 'warning' | 'info'
     }
-  ]
+  ],
+  "projectedExpense": 1250.00, // exact predicted expense amount as a number
+  "projectedSurplusDeficit": 250.00, // surplus/deficit amount as single absolute positive number
+  "isDeficit": false, // true if projectedExpense exceeds budget monthlyLimit, else false
+  "seasonalityInsights": "Detailed breakdown context explaining expected spikes or savings based on seasonality markers or subscription cycles."
 }
 
 Return ONLY raw JSON, conforming exactly to this structure.
@@ -150,6 +160,78 @@ Return ONLY a valid JSON array matching the structure above. No preamble, no bac
     console.error('API analyze-subscriptions Error:', errorDetails);
     res.status(500).json({
       error: 'Failed to analyze subscription profile.',
+      details: errorDetails.message
+    });
+  }
+});
+
+app.post('/api/analyze-goal', async (req, res) => {
+  try {
+    const { goal, transactions, budget } = req.body;
+    const apiKey = process.env['GEMINI_API_KEY'];
+    if (!apiKey) {
+      res.status(500).json({
+        error: 'GEMINI_API_KEY not configured. Please add it via the Secrets panel.'
+      });
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const formattedTransactions = (transactions || []).map((t: { type: string; amount: number; category: string }) =>
+      `- ${t.type.toUpperCase()}: $${t.amount} in '${t.category}'`
+    ).slice(0, 30).join('\n');
+
+    const prompt = `
+You are an expert financial planning AI. Provide SMART financial goal coaching and planning.
+Analyze this user's goal, monthly budget and recent transactions:
+
+Goal details:
+- Name: ${goal.name}
+- Target: $${goal.targetAmount} (Current: $${goal.currentAmount})
+- Category: ${goal.category}
+- Target Date: ${goal.targetDate}
+SMART Alignment parameters written by the user:
+- Specific: ${goal.smartSpecific}
+- Measurable: ${goal.smartMeasurable}
+- Achievable: ${goal.smartAchievable}
+- Relevant: ${goal.smartRelevant}
+- Time-Bound: ${goal.smartTimeBound}
+
+Monthly Budget Limits:
+- Total limit: $${budget?.monthlyLimit || 0}
+- Category limits: ${JSON.stringify(budget?.categoryLimits || {})}
+
+Recent transactions:
+${formattedTransactions || 'No transactions logged.'}
+
+Provide your response in the following strict JSON format (do not use other fields, do not include markdown codes, return direct valid raw JSON only):
+{
+  "advice": "Personalized motivational and tactical financial coaching advice specific to completing the SMART parameters before ${goal.targetDate}.",
+  "suggestedBudgetAdjustments": [
+    "Decrease 'Entertainment' by $30 to save faster",
+    "Allocate a $100 monthly surplus directly to ${goal.name}"
+  ],
+  "progressTracking": "A professional analysis of whether they are on track, lagging, or ahead based on current income and expense velocities, with simple timeline math."
+}
+
+Return ONLY raw JSON, conforming exactly to this structure. No backticks or quotes wrapper.
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const text = response.text || '';
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const data = JSON.parse(cleanedText);
+    res.json(data);
+  } catch (err: unknown) {
+    const errorDetails = err as Error;
+    console.error('API analyze-goal Error:', errorDetails);
+    res.status(500).json({
+      error: 'Failed to analyze goals.',
       details: errorDetails.message
     });
   }

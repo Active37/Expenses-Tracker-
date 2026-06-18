@@ -12,6 +12,7 @@ import { FinanceEngine } from './services/finance';
 })
 export class App implements OnInit {
   public engine = inject(FinanceEngine);
+  Math = Math;
 
   incomeCount = computed(() => this.engine.transactions().filter(t => t.type === 'income').length);
   expenseCount = computed(() => this.engine.transactions().filter(t => t.type === 'expense').length);
@@ -42,6 +43,19 @@ export class App implements OnInit {
     password: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] })
   });
 
+  goalForm = new FormGroup({
+    name: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    targetAmount: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(1)] }),
+    currentAmount: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    category: new FormControl<string>('Savings', { nonNullable: true, validators: [Validators.required] }),
+    targetDate: new FormControl<string>(new Date().toISOString().substring(0, 10), { nonNullable: true, validators: [Validators.required] }),
+    smartSpecific: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    smartMeasurable: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    smartAchievable: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    smartRelevant: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    smartTimeBound: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] })
+  });
+
   // Signal properties to track UI status
   selectedType = signal<'expense' | 'income'>('expense');
   searchQuery = signal<string>('');
@@ -50,6 +64,8 @@ export class App implements OnInit {
   
   // UI Tabs / Screens
   activeTab = signal<'dashboard' | 'transactions' | 'budgets' | 'advisor' | 'subscriptions'>('dashboard');
+  activeSubTab = signal<'predictions' | 'goals'>('predictions');
+  showAddGoalForm = signal<boolean>(false);
   showAuthPanel = signal<boolean>(false);
   authMode = signal<'login' | 'signUp'>('login');
   authError = signal<string | null>(null);
@@ -57,7 +73,129 @@ export class App implements OnInit {
 
   // Interactive UI details
   selectedDonutSlice = signal<{ category: string; amount: number; percent: number } | null>(null);
+  hoveredTrendIndex = signal<number | null>(null);
   showBudgetSuccessToast = signal<boolean>(false);
+
+  // Recharts-style Line Chart: Past 6 Months spending trend
+  last6MonthsSpending = computed(() => {
+    const now = new Date();
+    // Build chronological array of ending year+month combos for past 6 calendar months
+    const months: { year: number; month: number; label: string; amount: number; yearMonthStr: string }[] = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleDateString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const yearMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+      months.push({
+        year,
+        month,
+        label: `${label} '${String(year).substring(2)}`,
+        amount: 0,
+        yearMonthStr
+      });
+    }
+
+    // Accumulate actual transaction expenses for these months
+    const currentTrans = this.engine.transactions();
+    currentTrans
+      .filter(t => t.type === 'expense')
+      .forEach(t => {
+        const prefix = t.date.substring(0, 7); // e.g. "2026-06"
+        const matched = months.find(m => m.yearMonthStr === prefix);
+        if (matched) {
+          matched.amount += t.amount;
+        }
+      });
+
+    // We calculate SVG geometry matching a typical Recharts responsive container behavior
+    const width = 500;
+    const height = 200;
+    const paddingLeft = 55;
+    const paddingRight = 20;
+    const paddingTop = 25;
+    const paddingBottom = 35;
+
+    const chartWidth = width - paddingLeft - paddingRight;
+    const chartHeight = height - paddingTop - paddingBottom;
+
+    const maxSpent = Math.max(...months.map(m => m.amount), 100);
+
+    const points = months.map((m, idx) => {
+      const x = paddingLeft + (idx / (months.length - 1)) * chartWidth;
+      const ratio = m.amount / maxSpent;
+      const y = paddingTop + chartHeight - (ratio * chartHeight);
+      
+      // Calculate delta versus previous calendar month in sequence
+      let diffLabel = '';
+      if (idx > 0) {
+        const prev = months[idx - 1].amount;
+        if (prev > 0) {
+          const diff = ((m.amount - prev) / prev) * 100;
+          if (diff > 0) {
+            diffLabel = `+${diff.toFixed(0)}% m-o-m increase`;
+          } else if (diff < 0) {
+            diffLabel = `${diff.toFixed(0)}% m-o-m decrease`;
+          } else {
+            diffLabel = '0% change m-o-m';
+          }
+        } else if (m.amount > 0) {
+          diffLabel = '+100% m-o-m increase';
+        } else {
+          diffLabel = '0% spend';
+        }
+      } else {
+        diffLabel = 'Baseline Month';
+      }
+
+      return {
+        ...m,
+        x,
+        y,
+        index: idx,
+        diffLabel
+      };
+    });
+
+    // Generate path strokes
+    let linePath = '';
+    let areaPath = '';
+    if (points.length > 0) {
+      linePath = `M ${points[0].x} ${points[0].y}`;
+      for (let i = 1; i < points.length; i++) {
+        linePath += ` L ${points[i].x} ${points[i].y}`;
+      }
+      areaPath = `${linePath} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`;
+    }
+
+    // Grid tick lines
+    const gridLines: { y: number; val: string }[] = [];
+    const ticksCount = 4;
+    for (let i = 0; i <= ticksCount; i++) {
+      const ratio = i / ticksCount;
+      const yVal = paddingTop + ratio * chartHeight;
+      const amountVal = maxSpent - (ratio * maxSpent);
+      gridLines.push({
+        y: yVal,
+        val: `$${Math.round(amountVal)}`
+      });
+    }
+
+    return {
+      points,
+      linePath,
+      areaPath,
+      gridLines,
+      width,
+      height,
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+      maxSpent
+    };
+  });
 
   // Category listing options updated reactively
   categoriesList = computed(() => {
@@ -236,6 +374,38 @@ export class App implements OnInit {
     setTimeout(() => this.showBudgetSuccessToast.set(false), 3000);
   }
 
+  submitGoal() {
+    if (this.goalForm.invalid) return;
+
+    const val = this.goalForm.value;
+    this.addFinancialGoal({
+      name: val.name || '',
+      targetAmount: val.targetAmount || 0,
+      currentAmount: val.currentAmount ?? 0,
+      category: val.category || 'Savings',
+      targetDate: val.targetDate || new Date().toISOString().substring(0, 10),
+      smartSpecific: val.smartSpecific || '',
+      smartMeasurable: val.smartMeasurable || '',
+      smartAchievable: val.smartAchievable || '',
+      smartRelevant: val.smartRelevant || '',
+      smartTimeBound: val.smartTimeBound || ''
+    });
+
+    this.goalForm.reset({
+      name: '',
+      targetAmount: null,
+      currentAmount: 0,
+      category: 'Savings',
+      targetDate: new Date().toISOString().substring(0, 10),
+      smartSpecific: '',
+      smartMeasurable: '',
+      smartAchievable: '',
+      smartRelevant: '',
+      smartTimeBound: ''
+    });
+    this.showAddGoalForm.set(false);
+  }
+
   onAuthSubmit() {
     if (this.authForm.invalid) return;
     this.authError.set(null);
@@ -299,11 +469,20 @@ export class App implements OnInit {
   }
 
   formatAuthError(code: string): string {
+    const mode = this.authMode();
     if (code.includes('auth/invalid-email')) return 'Invalid Email Address syntax.';
-    if (code.includes('auth/user-disabled')) return 'This sandbox account has been disabled.';
-    if (code.includes('auth/user-not-found')) return 'Email not found. Feel free to toggle Sign Up!';
-    if (code.includes('auth/wrong-password')) return 'Incorrect password entry.';
-    if (code.includes('auth/email-already-in-use')) return 'This email is already in use by another user.';
+    if (code.includes('auth/user-disabled')) return 'This account has been disabled.';
+    if (code.includes('auth/user-not-found')) {
+      return mode === 'login'
+        ? 'No registered account found with this email. Click "Sign Up" above to register.'
+        : 'Registered email already exists. Click "Sign In" to access your account.';
+    }
+    if (code.includes('auth/wrong-password') || code.includes('auth/invalid-credential')) {
+      return mode === 'login'
+        ? 'Invalid email or password. Please verify your credentials or click "Sign Up" if you are a new user.'
+        : 'This email is already registered. Try signing in, or use another email.';
+    }
+    if (code.includes('auth/email-already-in-use')) return 'This email is already in use by another user. Please Sign In.';
     if (code.includes('auth/weak-password')) return 'Password must be at least 6 characters.';
     return 'Authentication error: ' + code;
   }
@@ -318,5 +497,31 @@ export class App implements OnInit {
 
   changeSubStatus(id: string, status: 'active' | 'paused' | 'under_review') {
     this.engine.updateSubscriptionStatus(id, status);
+  }
+
+  addFinancialGoal(g: { name: string; targetAmount: number; currentAmount: number; category: string; targetDate: string; smartSpecific: string; smartMeasurable: string; smartAchievable: string; smartRelevant: string; smartTimeBound: string }) {
+    this.engine.addGoal(g);
+  }
+
+  deleteFinancialGoal(id: string) {
+    this.engine.deleteGoal(id);
+  }
+
+  updateFinancialGoalAmount(id: string, currentAmount: number) {
+    this.engine.updateGoalAmount(id, currentAmount);
+  }
+
+  changeFinancialGoalStatus(id: string, status: 'in_progress' | 'completed' | 'paused') {
+    this.engine.updateGoalStatus(id, status);
+  }
+
+  fetchFinancialGoalAdvice(goalId: string) {
+    this.engine.requestGoalAdvice(goalId);
+  }
+
+  clearAllLedgerData() {
+    if (confirm('Are you absolutely sure you want to clear all transactions, subscription and smart goal logs? They will be permanently deleted.')) {
+      this.engine.wipeAllData();
+    }
   }
 }

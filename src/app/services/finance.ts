@@ -44,6 +44,30 @@ export interface AIInsight {
     text: string;
     severity: 'good' | 'warning' | 'info';
   }[];
+  projectedExpense: number;
+  projectedSurplusDeficit: number;
+  isDeficit: boolean;
+  seasonalityInsights: string;
+}
+
+export interface FinancialGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  category: string;
+  targetDate: string;
+  status: 'in_progress' | 'completed' | 'paused';
+  createdAt: string;
+  smartSpecific: string;
+  smartMeasurable: string;
+  smartAchievable: string;
+  smartRelevant: string;
+  smartTimeBound: string;
+  aiAdvice?: string;
+  aiSuggestedBudgetAdjustments?: string[];
+  aiProgressTracking?: string;
+  loadingAdvice?: boolean;
 }
 
 const FIREBASE_CONFIG = {
@@ -86,6 +110,10 @@ export class FinanceEngine {
       'Other': 100
     }
   });
+
+  goals = signal<FinancialGoal[]>([]);
+  goalsLoading = signal<boolean>(false);
+  goalsError = signal<string | null>(null);
 
   currentUser = signal<User | null>(null);
   authLoading = signal<boolean>(true);
@@ -427,6 +455,50 @@ export class FinanceEngine {
         this.aiInsights.set(JSON.parse(localInsights));
       }
 
+      const localGoals = localStorage.getItem('finance_goals');
+      if (localGoals) {
+        this.goals.set(JSON.parse(localGoals));
+      } else {
+        const sampleGoals: FinancialGoal[] = [
+          {
+            id: 'sample-goal-1',
+            name: 'Emergency Nest Egg',
+            targetAmount: 5000,
+            currentAmount: 1850,
+            category: 'Savings',
+            targetDate: '2026-12-31',
+            status: 'in_progress',
+            createdAt: new Date().toISOString(),
+            smartSpecific: 'Build a safety net buffer covering exactly 3 months of mandatory utility and lodging overhead.',
+            smartMeasurable: 'Maintain a balance of $5,000 tracked on our direct ledger platform.',
+            smartAchievable: 'Pace monthly contributions of $300 by limiting dining overshoots.',
+            smartRelevant: 'Provides peace of mind and prevents falling back into debt during work gaps.',
+            smartTimeBound: 'Complete full balance before Dec 31, 2026.',
+            aiAdvice: 'Your net income surplus allows you to accelerate this goal. Consider saving an extra $50/mo from Entertainment budget which has redundant streams.',
+            aiSuggestedBudgetAdjustments: ['Reduce Entertainment from $150 to $100', 'Transfer $50 surplus to Savings Nest Egg']
+          },
+          {
+            id: 'sample-goal-2',
+            name: 'Clear Student Debt Block',
+            targetAmount: 4000,
+            currentAmount: 1200,
+            category: 'Debt Payoff',
+            targetDate: '2027-06-30',
+            status: 'in_progress',
+            createdAt: new Date().toISOString(),
+            smartSpecific: 'Eliminate high-interest student debt block to decrease interest load.',
+            smartMeasurable: 'Repay the absolute target of $4,000.',
+            smartAchievable: 'Channel quarterly freelance income directly into principal repayments.',
+            smartRelevant: 'Unlocking monthly liquid flow currently tied up in interest charges.',
+            smartTimeBound: 'Target date finalized to June 30, 2027.',
+            aiAdvice: 'Great structural start. Since freelance cycles fluctuate, keep a buffer. Approved re-allocation of shopping limits should help pacify balances.',
+            aiSuggestedBudgetAdjustments: ['Adjust Shopping from $200 to $150']
+          }
+        ];
+        this.goals.set(sampleGoals);
+        localStorage.setItem('finance_goals', JSON.stringify(sampleGoals));
+      }
+
       this.checkBudgets();
     } catch (e) {
       console.error('LocalStorage load failed', e);
@@ -439,6 +511,7 @@ export class FinanceEngine {
       localStorage.setItem('finance_transactions', JSON.stringify(this.transactions()));
       localStorage.setItem('finance_budget', JSON.stringify(this.budget()));
       localStorage.setItem('finance_subscriptions', JSON.stringify(this.subscriptions()));
+      localStorage.setItem('finance_goals', JSON.stringify(this.goals()));
       if (this.aiInsights()) {
         localStorage.setItem('finance_insights', JSON.stringify(this.aiInsights()));
       }
@@ -474,20 +547,54 @@ export class FinanceEngine {
           this.subscriptions.set(cloudData['subscriptions']);
           localStorage.setItem('finance_subscriptions', JSON.stringify(cloudData['subscriptions']));
         }
+        if (cloudData['goals']) {
+          this.goals.set(cloudData['goals']);
+          localStorage.setItem('finance_goals', JSON.stringify(cloudData['goals']));
+        }
         if (cloudData['insights']) {
           this.aiInsights.set(cloudData['insights']);
           localStorage.setItem('finance_insights', JSON.stringify(cloudData['insights']));
         }
         this.syncStatus.set('synced');
       } else {
-        // User first login, push current local data to cloud
+        // User first login, initialize brand new secure ledger with a clean slate (zero mock data) so they can key in their real data
+        this.transactions.set([]);
+        this.subscriptions.set([]);
+        this.goals.set([]);
+        this.aiInsights.set(null);
+        this.notifications.set([]);
+
+        const initialBudget = {
+          monthlyLimit: 1500,
+          categoryLimits: {
+            'Food & Dining': 300,
+            'Rent & Housing': 800,
+            'Bills & Utilities': 200,
+            'Transport': 100,
+            'Entertainment': 150,
+            'Shopping': 200,
+            'Health & Fitness': 100,
+            'Other': 100
+          }
+        };
+
+        this.budget.set(initialBudget);
+
         await setDoc(userDocRef, {
-          transactions: this.transactions(),
-          budget: this.budget(),
-          subscriptions: this.subscriptions(),
-          insights: this.aiInsights(),
+          transactions: [],
+          budget: initialBudget,
+          subscriptions: [],
+          goals: [],
+          insights: null,
           updatedAt: new Date().toISOString()
         });
+
+        localStorage.setItem('finance_transactions', JSON.stringify([]));
+        localStorage.setItem('finance_subscriptions', JSON.stringify([]));
+        localStorage.setItem('finance_goals', JSON.stringify([]));
+        localStorage.setItem('finance_budget', JSON.stringify(initialBudget));
+        localStorage.removeItem('finance_insights');
+
         this.syncStatus.set('synced');
       }
       this.checkBudgets();
@@ -508,6 +615,7 @@ export class FinanceEngine {
         transactions: this.transactions(),
         budget: this.budget(),
         subscriptions: this.subscriptions(),
+        goals: this.goals(),
         insights: this.aiInsights(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
@@ -711,6 +819,115 @@ export class FinanceEngine {
     }
   }
 
+  // Financial Goals Management
+  addGoal(goalInput: Omit<FinancialGoal, 'id' | 'createdAt' | 'status'>) {
+    const newGoal: FinancialGoal = {
+      ...goalInput,
+      id: 'goal-' + Math.random().toString(36).substring(2, 9),
+      status: 'in_progress',
+      createdAt: new Date().toISOString()
+    };
+
+    this.goals.update(prev => [newGoal, ...prev]);
+    this.saveLocalData();
+
+    if (this.currentUser()) {
+      this.pushToCloud();
+    }
+  }
+
+  deleteGoal(id: string) {
+    this.goals.update(prev => prev.filter(g => g.id !== id));
+    this.saveLocalData();
+
+    if (this.currentUser()) {
+      this.pushToCloud();
+    }
+  }
+
+  updateGoalAmount(id: string, currentAmount: number) {
+    this.goals.update(prev => prev.map(g => {
+      if (g.id === id) {
+        const completed = currentAmount >= g.targetAmount;
+        return {
+          ...g,
+          currentAmount,
+          status: completed ? 'completed' : g.status
+        };
+      }
+      return g;
+    }));
+    this.saveLocalData();
+
+    if (this.currentUser()) {
+      this.pushToCloud();
+    }
+  }
+
+  updateGoalStatus(id: string, status: 'in_progress' | 'completed' | 'paused') {
+    this.goals.update(prev => prev.map(g => g.id === id ? { ...g, status } : g));
+    this.saveLocalData();
+
+    if (this.currentUser()) {
+      this.pushToCloud();
+    }
+  }
+
+  async requestGoalAdvice(goalId: string) {
+    // Set loading indicator on this specific goal
+    this.goals.update(prev => prev.map(g => g.id === goalId ? { ...g, loadingAdvice: true } : g));
+    this.goalsError.set(null);
+
+    try {
+      const selectedGoal = this.goals().find(g => g.id === goalId);
+      if (!selectedGoal) throw new Error('Goal not found');
+
+      const payload = {
+        goal: selectedGoal,
+        transactions: this.transactions(),
+        budget: this.budget()
+      };
+
+      const res = await fetch('/api/analyze-goal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error(`Advisor endpoint returned status: ${res.status}`);
+      }
+
+      const adviceResult = await res.json();
+      
+      this.goals.update(prev => prev.map(g => {
+        if (g.id === goalId) {
+          return {
+            ...g,
+            aiAdvice: adviceResult.advice,
+            aiSuggestedBudgetAdjustments: adviceResult.suggestedBudgetAdjustments,
+            aiProgressTracking: adviceResult.progressTracking,
+            loadingAdvice: false
+          };
+        }
+        return g;
+      }));
+
+      this.saveLocalData();
+
+      if (this.currentUser()) {
+        this.pushToCloud();
+      }
+    } catch (err: unknown) {
+      const e = err as Error;
+      console.error('Goal advice generation failed', e);
+      this.goalsError.set(e.message || 'Server timeout or connection failure asking the AI.');
+      this.goals.update(prev => prev.map(g => g.id === goalId ? { ...g, loadingAdvice: false } : g));
+    }
+  }
+
   // Account Management
   async signUp(email: string, pass: string) {
     if (!this.auth) throw new Error('Auth not initialized.');
@@ -746,6 +963,38 @@ export class FinanceEngine {
       this.loadLocalData();
     } catch (e) {
       console.error('Sign Out failed', e);
+    }
+  }
+
+  wipeAllData() {
+    this.transactions.set([]);
+    this.subscriptions.set([]);
+    this.goals.set([]);
+    this.aiInsights.set(null);
+    this.notifications.set([]);
+
+    if (this.isBrowser) {
+      localStorage.setItem('finance_transactions', JSON.stringify([]));
+      localStorage.setItem('finance_subscriptions', JSON.stringify([]));
+      localStorage.setItem('finance_goals', JSON.stringify([]));
+      localStorage.setItem('finance_budget', JSON.stringify({
+        monthlyLimit: 1500,
+        categoryLimits: {
+          'Food & Dining': 300,
+          'Rent & Housing': 800,
+          'Bills & Utilities': 200,
+          'Transport': 100,
+          'Entertainment': 150,
+          'Shopping': 200,
+          'Health & Fitness': 100,
+          'Other': 100
+        }
+      }));
+      localStorage.removeItem('finance_insights');
+    }
+
+    if (this.currentUser()) {
+      this.pushToCloud();
     }
   }
 }
