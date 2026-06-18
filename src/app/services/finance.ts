@@ -4,6 +4,32 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, Auth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, Firestore } from 'firebase/firestore';
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
 export interface Transaction {
   id: string;
   type: 'income' | 'expense';
@@ -225,232 +251,36 @@ export class FinanceEngine {
       if (localTrans) {
         this.transactions.set(JSON.parse(localTrans));
       } else {
-        const yrMo = new Date().toISOString().substring(0, 7);
-        // Calculate previous months dynamically
-        const currentYear = new Date().getFullYear();
-        const currentMonth = new Date().getMonth(); // 0-11
-        
-        const getYearMonthOffset = (offsetMonths: number) => {
-          let y = currentYear;
-          let m = currentMonth - offsetMonths;
-          while (m < 0) {
-            m += 12;
-            y -= 1;
-          }
-          const mStr = String(m + 1).padStart(2, '0');
-          return `${y}-${mStr}`;
-        };
-
-        const prevMo1 = getYearMonthOffset(1);
-        const prevMo2 = getYearMonthOffset(2);
-
-        // Hydrate with some default transactions including subscriptions for beautiful initial rendering
-        const sampleTrans: Transaction[] = [
-          {
-            id: 'sample-1',
-            type: 'income',
-            amount: 3200,
-            category: 'Salary',
-            date: yrMo + '-01',
-            note: 'Monthly salary credit',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-2',
-            type: 'expense',
-            amount: 800,
-            category: 'Rent & Housing',
-            date: yrMo + '-02',
-            note: 'Apartment Rent',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-3',
-            type: 'expense',
-            amount: 145.50,
-            category: 'Food & Dining',
-            date: yrMo + '-05',
-            note: 'Weekly Grocery Shopping',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-4',
-            type: 'expense',
-            amount: 55,
-            category: 'Bills & Utilities',
-            date: yrMo + '-06',
-            note: 'High-speed Internet',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-5',
-            type: 'expense',
-            amount: 45.20,
-            category: 'Entertainment',
-            date: yrMo + '-10',
-            note: 'Movie tickets and snacks',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-netflix-1',
-            type: 'expense',
-            amount: 14.99,
-            category: 'Entertainment',
-            date: prevMo2 + '-15',
-            note: 'Netflix Premium Subscription',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-netflix-2',
-            type: 'expense',
-            amount: 14.99,
-            category: 'Entertainment',
-            date: prevMo1 + '-15',
-            note: 'Netflix Premium Subscription',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-netflix-3',
-            type: 'expense',
-            amount: 19.99,
-            category: 'Entertainment',
-            date: yrMo + '-15',
-            note: 'Netflix Premium Subscription (Upgraded pricing tier)',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-spotify-1',
-            type: 'expense',
-            amount: 10.99,
-            category: 'Entertainment',
-            date: prevMo1 + '-02',
-            note: 'Spotify Premium Family Plan',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-spotify-2',
-            type: 'expense',
-            amount: 10.99,
-            category: 'Entertainment',
-            date: yrMo + '-02',
-            note: 'Spotify Premium Family Plan',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-apple-1',
-            type: 'expense',
-            amount: 10.99,
-            category: 'Entertainment',
-            date: prevMo1 + '-10',
-            note: 'Apple Music Subscription',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-apple-2',
-            type: 'expense',
-            amount: 10.99,
-            category: 'Entertainment',
-            date: yrMo + '-10',
-            note: 'Apple Music Subscription',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-aws-1',
-            type: 'expense',
-            amount: 45.20,
-            category: 'Bills & Utilities',
-            date: prevMo1 + '-20',
-            note: 'Amazon Web Services Server Hosting',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-sub-aws-2',
-            type: 'expense',
-            amount: 45.20,
-            category: 'Bills & Utilities',
-            date: yrMo + '-20',
-            note: 'Amazon Web Services Server Hosting',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'sample-6',
-            type: 'income',
-            amount: 350,
-            category: 'Freelance',
-            date: yrMo + '-12',
-            note: 'Landing page design service',
-            createdAt: new Date().toISOString()
-          }
-        ];
-        this.transactions.set(sampleTrans);
-        localStorage.setItem('finance_transactions', JSON.stringify(sampleTrans));
+        this.transactions.set([]);
+        localStorage.setItem('finance_transactions', JSON.stringify([]));
       }
 
       const localSubs = localStorage.getItem('finance_subscriptions');
       if (localSubs) {
         this.subscriptions.set(JSON.parse(localSubs));
       } else {
-        const yrMo = new Date().toISOString().substring(0, 7);
-        const initialSubs: Subscription[] = [
-          {
-            id: 'initial-sub-netflix',
-            name: 'Netflix Premium tier',
-            cost: 19.99,
-            frequency: 'monthly',
-            renewalDate: yrMo + '-15',
-            status: 'active',
-            isDuplicate: false,
-            priceIncreased: true,
-            priceChangePercentage: 33.3,
-            previousPrice: 14.99,
-            detectedFromTransactionIds: ['sample-sub-netflix-1', 'sample-sub-netflix-2', 'sample-sub-netflix-3'],
-            notes: 'Price increased significantly from $14.99 to $19.99 last cycle.'
-          },
-          {
-            id: 'initial-sub-spotify',
-            name: 'Spotify Premium Family Plan',
-            cost: 10.99,
-            frequency: 'monthly',
-            renewalDate: yrMo + '-02',
-            status: 'active',
-            isDuplicate: true,
-            duplicateWith: 'Apple Music Subscription',
-            priceIncreased: false,
-            detectedFromTransactionIds: ['sample-sub-spotify-1', 'sample-sub-spotify-2'],
-            notes: 'Potential duplicate resource found: matches Apple Music subscription active in same category.'
-          },
-          {
-            id: 'initial-sub-apple',
-            name: 'Apple Music Subscription',
-            cost: 10.99,
-            frequency: 'monthly',
-            renewalDate: yrMo + '-10',
-            status: 'active',
-            isDuplicate: true,
-            duplicateWith: 'Spotify Premium Family Plan',
-            priceIncreased: false,
-            detectedFromTransactionIds: ['sample-sub-apple-1', 'sample-sub-apple-2'],
-            notes: 'Potential duplicate resource found: matches Spotify Premium subscription active in same category.'
-          },
-          {
-            id: 'initial-sub-aws',
-            name: 'Amazon Web Services Server Hosting',
-            cost: 45.20,
-            frequency: 'monthly',
-            renewalDate: yrMo + '-20',
-            status: 'active',
-            isDuplicate: false,
-            priceIncreased: false,
-            detectedFromTransactionIds: ['sample-sub-aws-1', 'sample-sub-aws-2'],
-            notes: 'Consistent server resource utility billing.'
-          }
-        ];
-        this.subscriptions.set(initialSubs);
-        localStorage.setItem('finance_subscriptions', JSON.stringify(initialSubs));
+        this.subscriptions.set([]);
+        localStorage.setItem('finance_subscriptions', JSON.stringify([]));
       }
 
       if (localBudget) {
         this.budget.set(JSON.parse(localBudget));
+      } else {
+        const defaultBudget = {
+          monthlyLimit: 0,
+          categoryLimits: {
+            'Food & Dining': 0,
+            'Rent & Housing': 0,
+            'Bills & Utilities': 0,
+            'Transport': 0,
+            'Entertainment': 0,
+            'Shopping': 0,
+            'Health & Fitness': 0,
+            'Other': 0
+          }
+        };
+        this.budget.set(defaultBudget);
+        localStorage.setItem('finance_budget', JSON.stringify(defaultBudget));
       }
 
       if (localInsights) {
@@ -461,44 +291,8 @@ export class FinanceEngine {
       if (localGoals) {
         this.goals.set(JSON.parse(localGoals));
       } else {
-        const sampleGoals: FinancialGoal[] = [
-          {
-            id: 'sample-goal-1',
-            name: 'Emergency Nest Egg',
-            targetAmount: 5000,
-            currentAmount: 1850,
-            category: 'Savings',
-            targetDate: '2026-12-31',
-            status: 'in_progress',
-            createdAt: new Date().toISOString(),
-            smartSpecific: 'Build a safety net buffer covering exactly 3 months of mandatory utility and lodging overhead.',
-            smartMeasurable: 'Maintain a balance of $5,000 tracked on our direct ledger platform.',
-            smartAchievable: 'Pace monthly contributions of $300 by limiting dining overshoots.',
-            smartRelevant: 'Provides peace of mind and prevents falling back into debt during work gaps.',
-            smartTimeBound: 'Complete full balance before Dec 31, 2026.',
-            aiAdvice: 'Your net income surplus allows you to accelerate this goal. Consider saving an extra $50/mo from Entertainment budget which has redundant streams.',
-            aiSuggestedBudgetAdjustments: ['Reduce Entertainment from $150 to $100', 'Transfer $50 surplus to Savings Nest Egg']
-          },
-          {
-            id: 'sample-goal-2',
-            name: 'Clear Student Debt Block',
-            targetAmount: 4000,
-            currentAmount: 1200,
-            category: 'Debt Payoff',
-            targetDate: '2027-06-30',
-            status: 'in_progress',
-            createdAt: new Date().toISOString(),
-            smartSpecific: 'Eliminate high-interest student debt block to decrease interest load.',
-            smartMeasurable: 'Repay the absolute target of $4,000.',
-            smartAchievable: 'Channel quarterly freelance income directly into principal repayments.',
-            smartRelevant: 'Unlocking monthly liquid flow currently tied up in interest charges.',
-            smartTimeBound: 'Target date finalized to June 30, 2027.',
-            aiAdvice: 'Great structural start. Since freelance cycles fluctuate, keep a buffer. Approved re-allocation of shopping limits should help pacify balances.',
-            aiSuggestedBudgetAdjustments: ['Adjust Shopping from $200 to $150']
-          }
-        ];
-        this.goals.set(sampleGoals);
-        localStorage.setItem('finance_goals', JSON.stringify(sampleGoals));
+        this.goals.set([]);
+        localStorage.setItem('finance_goals', JSON.stringify([]));
       }
 
       this.checkBudgets();
@@ -533,7 +327,13 @@ export class FinanceEngine {
 
     try {
       const userDocRef = doc(this.db, 'users', uid);
-      const userSnap = await getDoc(userDocRef);
+      let userSnap;
+      try {
+        userSnap = await getDoc(userDocRef);
+      } catch (err) {
+        this.handleFirestoreError(err, OperationType.GET, `users/${uid}`);
+        return;
+      }
 
       if (userSnap.exists()) {
         const cloudData = userSnap.data();
@@ -573,30 +373,34 @@ export class FinanceEngine {
         this.userPhone.set(this.registeredPhonePending || '');
 
         const initialBudget = {
-          monthlyLimit: 1500,
+          monthlyLimit: 0,
           categoryLimits: {
-            'Food & Dining': 300,
-            'Rent & Housing': 800,
-            'Bills & Utilities': 200,
-            'Transport': 100,
-            'Entertainment': 150,
-            'Shopping': 200,
-            'Health & Fitness': 100,
-            'Other': 100
+            'Food & Dining': 0,
+            'Rent & Housing': 0,
+            'Bills & Utilities': 0,
+            'Transport': 0,
+            'Entertainment': 0,
+            'Shopping': 0,
+            'Health & Fitness': 0,
+            'Other': 0
           }
         };
 
         this.budget.set(initialBudget);
 
-        await setDoc(userDocRef, {
-          transactions: [],
-          budget: initialBudget,
-          subscriptions: [],
-          goals: [],
-          insights: null,
-          phoneNumber: this.registeredPhonePending || '',
-          updatedAt: new Date().toISOString()
-        });
+        try {
+          await setDoc(userDocRef, {
+            transactions: [],
+            budget: initialBudget,
+            subscriptions: [],
+            goals: [],
+            insights: null,
+            phoneNumber: this.registeredPhonePending || '',
+            updatedAt: new Date().toISOString()
+          });
+        } catch (err) {
+          this.handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
+        }
 
         this.registeredPhonePending = '';
 
@@ -612,6 +416,9 @@ export class FinanceEngine {
     } catch (e) {
       console.error('Failed to sync with Firestore', e);
       this.syncStatus.set('offline');
+      if (e instanceof Error && e.message && e.message.includes('{"error"')) {
+        throw e;
+      }
     }
   }
 
@@ -622,19 +429,49 @@ export class FinanceEngine {
     this.syncStatus.set('syncing');
     try {
       const userDocRef = doc(this.db, 'users', user.uid);
-      await setDoc(userDocRef, {
-        transactions: this.transactions(),
-        budget: this.budget(),
-        subscriptions: this.subscriptions(),
-        goals: this.goals(),
-        insights: this.aiInsights(),
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      try {
+        await setDoc(userDocRef, {
+          transactions: this.transactions(),
+          budget: this.budget(),
+          subscriptions: this.subscriptions(),
+          goals: this.goals(),
+          insights: this.aiInsights(),
+          phoneNumber: this.userPhone(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (err) {
+        this.handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+      }
       this.syncStatus.set('synced');
     } catch (e) {
       console.error('Firestore save failed', e);
       this.syncStatus.set('offline');
+      if (e instanceof Error && e.message && e.message.includes('{"error"')) {
+        throw e;
+      }
     }
+  }
+
+  private handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: this.auth?.currentUser?.uid || null,
+        email: this.auth?.currentUser?.email || null,
+        emailVerified: this.auth?.currentUser?.emailVerified || null,
+        isAnonymous: this.auth?.currentUser?.isAnonymous || null,
+        tenantId: this.auth?.currentUser?.tenantId || null,
+        providerInfo: this.auth?.currentUser?.providerData?.map(provider => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || []
+      },
+      operationType,
+      path
+    };
+    const stringified = JSON.stringify(errInfo);
+    console.error('Firestore Error: ', stringified);
+    throw new Error(stringified);
   }
 
   checkBudgets() {
@@ -990,24 +827,60 @@ export class FinanceEngine {
     this.aiInsights.set(null);
     this.notifications.set([]);
 
+    const emptyBudget = {
+      monthlyLimit: 0,
+      categoryLimits: {
+        'Food & Dining': 0,
+        'Rent & Housing': 0,
+        'Bills & Utilities': 0,
+        'Transport': 0,
+        'Entertainment': 0,
+        'Shopping': 0,
+        'Health & Fitness': 0,
+        'Other': 0
+      }
+    };
+    this.budget.set(emptyBudget);
+
     if (this.isBrowser) {
       localStorage.setItem('finance_transactions', JSON.stringify([]));
       localStorage.setItem('finance_subscriptions', JSON.stringify([]));
       localStorage.setItem('finance_goals', JSON.stringify([]));
-      localStorage.setItem('finance_budget', JSON.stringify({
-        monthlyLimit: 1500,
-        categoryLimits: {
-          'Food & Dining': 300,
-          'Rent & Housing': 800,
-          'Bills & Utilities': 200,
-          'Transport': 100,
-          'Entertainment': 150,
-          'Shopping': 200,
-          'Health & Fitness': 100,
-          'Other': 100
-        }
-      }));
+      localStorage.setItem('finance_budget', JSON.stringify(emptyBudget));
       localStorage.removeItem('finance_insights');
+    }
+
+    if (this.currentUser()) {
+      this.pushToCloud();
+    }
+  }
+
+  addSubscription(subInput: { name: string; cost: number; frequency: 'weekly' | 'monthly' | 'yearly'; renewalDate: string; notes?: string }) {
+    const newSub: Subscription = {
+      ...subInput,
+      id: 'sub-' + Math.random().toString(36).substring(2, 9),
+      status: 'active',
+      isDuplicate: false,
+      priceIncreased: false,
+      detectedFromTransactionIds: []
+    };
+
+    this.subscriptions.update(prev => [newSub, ...prev]);
+
+    if (this.isBrowser) {
+      localStorage.setItem('finance_subscriptions', JSON.stringify(this.subscriptions()));
+    }
+
+    if (this.currentUser()) {
+      this.pushToCloud();
+    }
+  }
+
+  deleteSubscription(id: string) {
+    this.subscriptions.update(prev => prev.filter(s => s.id !== id));
+
+    if (this.isBrowser) {
+      localStorage.setItem('finance_subscriptions', JSON.stringify(this.subscriptions()));
     }
 
     if (this.currentUser()) {

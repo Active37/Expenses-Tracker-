@@ -1690,12 +1690,122 @@
                 Trigger AI Audit
               }
             </button>
+
+            <button 
+              type="button" 
+              (click)="showAddSubForm.set(!showAddSubForm())" 
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer font-sans"
+              id="toggle_add_sub_form_btn"
+            >
+              <span class="material-icons text-sm">add_circle</span>
+              {{ showAddSubForm() ? 'Hide Form' : 'Add Subscription Manually' }}
+            </button>
             
             <div class="text-[11px] text-slate-400 self-center">
               Last audited: Just now
             </div>
           </div>
         </div>
+
+        <!-- Add Subscription manual Input Form Card -->
+        @if (showAddSubForm()) {
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-6 transition-all duration-300">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-4 flex items-center gap-1.5 font-sans">
+              <span class="material-icons text-indigo-400 text-lg sm:text-xl">credit_card</span>
+              Add New Subscription Stream
+            </h3>
+
+            <form [formGroup]="subscriptionForm" (ngSubmit)="submitSubscription()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              <!-- Subscription Name -->
+              <div>
+                <label for="sub_name" class="text-xs font-medium text-slate-400 block mb-1">Subscription Name *</label>
+                <input 
+                  type="text" 
+                  id="sub_name"
+                  formControlName="name" 
+                  placeholder="e.g. Netflix, Spotify Premium, Gym"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 transition"
+                />
+                @if (subscriptionForm.get('name')?.invalid && subscriptionForm.get('name')?.touched) {
+                  <span class="text-[11px] text-red-400 mt-1 block">A subscription name is required.</span>
+                }
+              </div>
+
+              <!-- Cost -->
+              <div>
+                <label for="sub_cost" class="text-xs font-medium text-slate-400 block mb-1">Billing Amount ($) *</label>
+                <input 
+                  type="number" 
+                  id="sub_cost"
+                  formControlName="cost" 
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 transition"
+                />
+                @if (subscriptionForm.get('cost')?.invalid && subscriptionForm.get('cost')?.touched) {
+                  <span class="text-[11px] text-red-400 mt-1 block">Valid numeric cost is required.</span>
+                }
+              </div>
+
+              <!-- Frequency -->
+              <div>
+                <label for="sub_frequency" class="text-xs font-medium text-slate-400 block mb-1">Billing Frequency</label>
+                <select 
+                  id="sub_frequency"
+                  formControlName="frequency"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 transition appearance-none cursor-pointer"
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+
+              <!-- Renewal Date -->
+              <div>
+                <label for="sub_renewal" class="text-xs font-medium text-slate-400 block mb-1">Next Renewal Date *</label>
+                <input 
+                  type="date" 
+                  id="sub_renewal"
+                  formControlName="renewalDate"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 transition cursor-pointer"
+                />
+              </div>
+
+              <!-- Notes -->
+              <div class="md:col-span-2">
+                <label for="sub_notes" class="text-xs font-medium text-slate-400 block mb-1">Notes / Description</label>
+                <input 
+                  type="text" 
+                  id="sub_notes"
+                  formControlName="notes" 
+                  placeholder="e.g. Premium UHD plan, split with roommates..."
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div class="md:col-span-2 flex justify-end gap-2.5 mt-2">
+                <button 
+                  type="button" 
+                  (click)="showAddSubForm.set(false)"
+                  class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 text-xs font-medium hover:bg-slate-700/40 transition cursor-pointer font-sans"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  [disabled]="subscriptionForm.invalid"
+                  class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-950/20 transition cursor-pointer font-sans"
+                >
+                  Add Subscription Stream
+                </button>
+              </div>
+
+            </form>
+          </div>
+        }
 
         @if (engine.subError()) {
           <div class="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-xs text-red-300 flex items-center gap-2">
@@ -1901,6 +2011,15 @@
                     </div>
                     
                     <div class="flex items-center gap-1.5">
+                      <button 
+                        type="button" 
+                        (click)="deleteSubscription(sub.id)"
+                        class="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-red-400 transition cursor-pointer flex items-center justify-center"
+                        title="Delete Subscription Stream"
+                      >
+                        <span class="material-icons text-sm">delete</span>
+                      </button>
+
                       @if (sub.status === 'active') {
                         <button 
                           type="button" 

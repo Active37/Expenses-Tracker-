@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormGroup, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
 import { FinanceEngine } from './services/finance';
@@ -14,6 +14,16 @@ export class App implements OnInit {
   public engine = inject(FinanceEngine);
   Math = Math;
 
+  constructor() {
+    effect(() => {
+      const currentBudget = this.engine.budget();
+      this.budgetForm.patchValue({
+        monthlyLimit: currentBudget.monthlyLimit,
+        ...currentBudget.categoryLimits
+      }, { emitEvent: false });
+    });
+  }
+
   incomeCount = computed(() => this.engine.transactions().filter(t => t.type === 'income').length);
   expenseCount = computed(() => this.engine.transactions().filter(t => t.type === 'expense').length);
 
@@ -27,16 +37,26 @@ export class App implements OnInit {
   });
 
   budgetForm = new FormGroup({
-    monthlyLimit: new FormControl<number>(1500, { nonNullable: true, validators: [Validators.required, Validators.min(1)] }),
-    'Food & Dining': new FormControl<number>(300, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    'Rent & Housing': new FormControl<number>(800, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    'Bills & Utilities': new FormControl<number>(200, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    Transport: new FormControl<number>(100, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    Entertainment: new FormControl<number>(150, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    Shopping: new FormControl<number>(200, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    'Health & Fitness': new FormControl<number>(100, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    Other: new FormControl<number>(100, { nonNullable: true, validators: [Validators.required, Validators.min(0)] })
+    monthlyLimit: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    'Food & Dining': new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    'Rent & Housing': new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    'Bills & Utilities': new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    Transport: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    Entertainment: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    Shopping: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    'Health & Fitness': new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    Other: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] })
   });
+
+  subscriptionForm = new FormGroup({
+    name: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    cost: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(0.01)] }),
+    frequency: new FormControl<'weekly' | 'monthly' | 'yearly'>('monthly', { nonNullable: true, validators: [Validators.required] }),
+    renewalDate: new FormControl<string>(new Date().toISOString().substring(0, 10), { nonNullable: true, validators: [Validators.required] }),
+    notes: new FormControl<string>('', { nonNullable: true })
+  });
+
+  showAddSubForm = signal<boolean>(false);
 
   authForm = new FormGroup({
     email: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
@@ -474,6 +494,9 @@ export class App implements OnInit {
     const mode = this.authMode();
     if (code.includes('auth/invalid-email')) return 'Invalid Email Address syntax.';
     if (code.includes('auth/user-disabled')) return 'This account has been disabled.';
+    if (code.includes('auth/operation-not-allowed')) {
+      return 'Email/Password Auth provider is not enabled in your Firebase Console. Please go to your Firebase Console under Authentication -> Sign-in method, select "Email/Password", enable it, and save changes.';
+    }
     if (code.includes('auth/user-not-found')) {
       return mode === 'login'
         ? 'No registered account found with this email. Click "Sign Up" above to register.'
@@ -499,6 +522,33 @@ export class App implements OnInit {
 
   changeSubStatus(id: string, status: 'active' | 'paused' | 'under_review') {
     this.engine.updateSubscriptionStatus(id, status);
+  }
+
+  submitSubscription() {
+    if (this.subscriptionForm.invalid) return;
+
+    const val = this.subscriptionForm.value;
+    this.engine.addSubscription({
+      name: val.name || '',
+      cost: val.cost || 0,
+      frequency: val.frequency as 'weekly' | 'monthly' | 'yearly',
+      renewalDate: val.renewalDate || new Date().toISOString().substring(0, 10),
+      notes: val.notes || ''
+    });
+
+    this.subscriptionForm.reset({
+      name: '',
+      cost: null,
+      frequency: 'monthly',
+      renewalDate: new Date().toISOString().substring(0, 10),
+      notes: ''
+    });
+
+    this.showAddSubForm.set(false);
+  }
+
+  deleteSubscription(id: string) {
+    this.engine.deleteSubscription(id);
   }
 
   addFinancialGoal(g: { name: string; targetAmount: number; currentAmount: number; category: string; targetDate: string; smartSpecific: string; smartMeasurable: string; smartAchievable: string; smartRelevant: string; smartTimeBound: string }) {

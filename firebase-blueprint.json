@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "UserLedger": {
+      "title": "User Ledger Data",
+      "description": "User specific dashboard containing financial transactions, budgets, subscriptions and goals.",
+      "type": "object",
+      "properties": {
+        "transactions": {
+          "type": "array",
+          "description": "Financial transaction entries"
+        },
+        "budget": {
+          "type": "object",
+          "description": "Budget limits"
+        },
+        "subscriptions": {
+          "type": "array",
+          "description": "Subscriptions tracked"
+        },
+        "goals": {
+          "type": "array",
+          "description": "Savings and financial goals"
+        },
+        "insights": {
+          "type": "object",
+          "description": "AI generated monthly summary and advice"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "User phone number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["transactions", "budget", "subscriptions", "goals", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserLedger",
+      "description": "Secured central financial storage for each user"
+    }
+  }
+}
