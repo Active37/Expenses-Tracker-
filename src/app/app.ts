@@ -40,7 +40,8 @@ export class App implements OnInit {
 
   authForm = new FormGroup({
     email: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
-    password: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] })
+    password: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] }),
+    phoneNumber: new FormControl<string>('', { nonNullable: true })
   });
 
   goalForm = new FormGroup({
@@ -413,6 +414,7 @@ export class App implements OnInit {
 
     const email = this.authForm.controls.email.value;
     const password = this.authForm.controls.password.value;
+    const phoneNumber = this.authForm.controls.phoneNumber.value;
 
     if (this.authMode() === 'login') {
       this.engine.login(email, password)
@@ -426,7 +428,7 @@ export class App implements OnInit {
           this.authError.set(this.formatAuthError(err.code || err.message));
         });
     } else {
-      this.engine.signUp(email, password)
+      this.engine.signUp(email, password, phoneNumber)
         .then(() => {
           this.authSuccessMsg.set('Account successfully created! Data is synced safely.');
           this.authForm.reset();

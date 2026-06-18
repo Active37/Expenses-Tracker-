@@ -121,6 +121,8 @@ export class FinanceEngine {
   aiInsights = signal<AIInsight | null>(null);
   aiLoading = signal<boolean>(false);
   aiError = signal<string | null>(null);
+  userPhone = signal<string>('');
+  private registeredPhonePending = '';
 
   // Notifications
   notifications = signal<{ id: string; message: string; type: 'warning' | 'info'; date: string }[]>([]);
@@ -535,6 +537,11 @@ export class FinanceEngine {
 
       if (userSnap.exists()) {
         const cloudData = userSnap.data();
+        if (cloudData['phoneNumber']) {
+          this.userPhone.set(cloudData['phoneNumber']);
+        } else {
+          this.userPhone.set('');
+        }
         if (cloudData['transactions']) {
           this.transactions.set(cloudData['transactions']);
           localStorage.setItem('finance_transactions', JSON.stringify(cloudData['transactions']));
@@ -563,6 +570,7 @@ export class FinanceEngine {
         this.goals.set([]);
         this.aiInsights.set(null);
         this.notifications.set([]);
+        this.userPhone.set(this.registeredPhonePending || '');
 
         const initialBudget = {
           monthlyLimit: 1500,
@@ -586,8 +594,11 @@ export class FinanceEngine {
           subscriptions: [],
           goals: [],
           insights: null,
+          phoneNumber: this.registeredPhonePending || '',
           updatedAt: new Date().toISOString()
         });
+
+        this.registeredPhonePending = '';
 
         localStorage.setItem('finance_transactions', JSON.stringify([]));
         localStorage.setItem('finance_subscriptions', JSON.stringify([]));
@@ -929,10 +940,15 @@ export class FinanceEngine {
   }
 
   // Account Management
-  async signUp(email: string, pass: string) {
+  async signUp(email: string, pass: string, phoneNumber?: string) {
     if (!this.auth) throw new Error('Auth not initialized.');
     this.authLoading.set(true);
     try {
+      if (phoneNumber) {
+        this.registeredPhonePending = phoneNumber;
+      } else {
+        this.registeredPhonePending = '';
+      }
       const cred = await createUserWithEmailAndPassword(this.auth, email, pass);
       return cred.user;
     } catch (err: unknown) {
@@ -958,6 +974,7 @@ export class FinanceEngine {
     try {
       await signOut(this.auth);
       this.currentUser.set(null);
+      this.userPhone.set('');
       this.syncStatus.set('offline');
       // Clear personal states, re-load local storage
       this.loadLocalData();
