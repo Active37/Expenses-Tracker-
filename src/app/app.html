@@ -131,6 +131,23 @@
         <span class="material-icons text-base">psychology</span>
         AI Advisor
       </button>
+
+      <button 
+        (click)="activeTab.set('subscriptions')"
+        [class]="activeTab() === 'subscriptions' ? 'bg-slate-800 border border-slate-700/70 text-emerald-400' : 'text-slate-400 hover:text-slate-200'"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer relative"
+        id="tab_subscriptions_btn"
+      >
+        @if (engine.alertSubscriptions().length > 0) {
+          <!-- Sub alert dot -->
+          <span class="relative flex h-2 w-2 mr-0.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+          </span>
+        }
+        <span class="material-icons text-base">autorenew</span>
+        AI Subscriptions
+      </button>
     </div>
   </div>
 
@@ -957,6 +974,307 @@
             </button>
           </div>
         }
+
+      </div>
+    }
+
+    <!-- Subscriptions Tab Content -->
+    @if (activeTab() === 'subscriptions') {
+      <div class="space-y-6">
+        
+        <!-- Header & Action card -->
+        <div class="relative bg-gradient-to-r from-slate-900 to-indigo-950/40 border border-slate-800 rounded-3xl p-6 overflow-hidden">
+          <div class="absolute -right-6 -bottom-10 text-slate-800/20 pointer-events-none">
+            <span class="material-icons text-9xl">autorenew</span>
+          </div>
+
+          <div class="max-w-xl space-y-2">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+              Smart Audits
+            </span>
+            <h2 class="text-xl sm:text-2xl font-sans font-bold tracking-tight text-white">Subscription Vault & Price Guard</h2>
+            <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Our cognitive auditor constantly scans your ledger transaction history patterns to locate recurring subscription streams, flag potential duplicates across similar applications, and warn you of stealth cycle cost increases.
+            </p>
+          </div>
+
+          <div class="mt-6 flex flex-wrap gap-3">
+            <button 
+              type="button" 
+              (click)="fetchSubscriptionAnalysis()" 
+              [disabled]="engine.subLoading()"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider transition disabled:opacity-50 cursor-pointer"
+              id="analyze_subs_btn"
+            >
+              @if (engine.subLoading()) {
+                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analyzing transactions...
+              } @else {
+                <span class="material-icons text-sm">psychology</span>
+                Trigger AI Audit
+              }
+            </button>
+            
+            <div class="text-[11px] text-slate-400 self-center">
+              Last audited: Just now
+            </div>
+          </div>
+        </div>
+
+        @if (engine.subError()) {
+          <div class="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-xs text-red-300 flex items-center gap-2">
+            <span class="material-icons text-base">error_outline</span>
+            <p>{{ engine.subError() }}</p>
+          </div>
+        }
+
+        <!-- Subscription Metrics Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          
+          <div class="bg-slate-900/65 border border-slate-800 rounded-2xl p-5">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Monthly Cost Load</span>
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-2xl sm:text-3xl font-mono font-bold text-emerald-400">
+                ${{ engine.subscriptionCostLoad().toFixed(2) }}
+              </span>
+              <span class="text-xs text-slate-400 font-medium">/ month</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/65 border border-slate-800 rounded-2xl p-5 flex justify-between items-center">
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Stealth Hikes Warned</span>
+              <span class="text-2xl sm:text-3xl font-mono font-bold text-red-400">
+                {{ engine.priceHikeSubscriptions().length }}
+              </span>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-red-400/10 flex items-center justify-center text-red-400">
+              <span class="material-icons">trending_up</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/65 border border-slate-800 rounded-2xl p-5 flex justify-between items-center">
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Overlaps & Duplicates</span>
+              <span class="text-2xl sm:text-3xl font-mono font-bold text-amber-500">
+                {{ engine.duplicateSubscriptions().length }}
+              </span>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+              <span class="material-icons">content_copy</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- High Risk Core Alert List -->
+        @if (engine.alertSubscriptions().length > 0) {
+          <div class="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-5 space-y-3.5">
+            <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="material-icons text-amber-400 text-sm">warning</span>
+              Urgent Subscription Leaks Identified ({{ engine.alertSubscriptions().length }})
+            </h3>
+            
+            <div class="space-y-2.5">
+              @for (sub of engine.subscriptions(); track sub.id) {
+                @if (sub.status !== 'paused') {
+                  
+                  <!-- Price Increase Alert Card -->
+                  @if (sub.priceIncreased) {
+                    <div class="bg-slate-950/60 border border-red-500/25 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div class="space-y-1">
+                        <span class="text-[10px] font-semibold text-red-400 uppercase tracking-widest bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full inline-block">Price Hike Alert</span>
+                        <h4 class="text-xs font-bold text-slate-100 mt-1">
+                          {{ sub.name }} price increased by {{ sub.priceChangePercentage | number:'1.0-1' }}%
+                        </h4>
+                        <p class="text-[11px] text-slate-400">
+                          Subscription cost shot up from ${{ sub.previousPrice }} to ${{ sub.cost }} last cycle.
+                        </p>
+                      </div>
+                      <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'under_review')" 
+                          class="grow sm:grow-0 text-center px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer"
+                        >
+                          Review Subscription
+                        </button>
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'paused')" 
+                          class="grow sm:grow-0 text-center px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-medium cursor-pointer"
+                        >
+                          Pause Sub
+                        </button>
+                      </div>
+                    </div>
+                  }
+
+                  <!-- Duplicate Alert Card -->
+                  @if (sub.isDuplicate) {
+                    <div class="bg-slate-950/60 border border-amber-500/25 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div class="space-y-1">
+                        <span class="text-[10px] font-semibold text-amber-500 uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full inline-block">Overlap warning</span>
+                        <h4 class="text-xs font-bold text-slate-100 mt-1">
+                          Possible duplicate with {{ sub.duplicateWith }}
+                        </h4>
+                        <p class="text-[11px] text-slate-400">
+                          Both recurring services are active in the Entertainment stream. Consider merging.
+                        </p>
+                      </div>
+                      <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'under_review')" 
+                          class="grow sm:grow-0 text-center px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer"
+                        >
+                          Review Subscription
+                        </button>
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'paused')" 
+                          class="grow sm:grow-0 text-center px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-medium cursor-pointer"
+                        >
+                          Pause Sub
+                        </button>
+                      </div>
+                    </div>
+                  }
+
+                }
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Active Monitored Subscriptions List -->
+        <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-white tracking-wide">Live Monitored Streams</h3>
+              <p class="text-xs text-slate-400">Real-time control configurations over billing streams.</p>
+            </div>
+            
+            <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <span class="text-[10px] text-slate-500 font-bold px-2 uppercase">Status filter:</span>
+              <button 
+                type="button" 
+                class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-slate-800 text-slate-200"
+              >
+                All ({{ engine.subscriptions().length }})
+              </button>
+            </div>
+          </div>
+
+          @if (engine.subscriptions().length === 0) {
+            <div class="text-center py-12 text-slate-500 text-xs">
+              No subscription streams identified yet. Run the AI Audit above!
+            </div>
+          } @else {
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              @for (sub of engine.subscriptions(); track sub.id) {
+                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between"
+                     [class.border-red-500/20]="sub.status !== 'paused' && sub.priceIncreased"
+                     [class.border-amber-500/20]="sub.status !== 'paused' && sub.isDuplicate"
+                     [class.opacity-60]="sub.status === 'paused'"
+                >
+                  
+                  <div class="space-y-3">
+                    <div class="flex justify-between items-start gap-2">
+                      <div>
+                        <h4 class="text-sm font-bold text-white">{{ sub.name }}</h4>
+                        <div class="flex items-center gap-2 mt-1">
+                          <span class="text-xs font-mono font-extrabold text-emerald-400">${{ sub.cost.toFixed(2) }}</span>
+                          <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center justify-center">/ {{ sub.frequency }}</span>
+                        </div>
+                      </div>
+
+                      <!-- Sub status pill -->
+                      <span [class.bg-emerald-500/15]="sub.status === 'active'"
+                            [class.text-emerald-400]="sub.status === 'active'"
+                            [class.border-emerald-500/20]="sub.status === 'active'"
+                            [class.bg-red-500/15]="sub.status === 'paused'"
+                            [class.text-red-400]="sub.status === 'paused'"
+                            [class.border-red-500/20]="sub.status === 'paused'"
+                            [class.bg-amber-500/15]="sub.status === 'under_review'"
+                            [class.text-amber-400]="sub.status === 'under_review'"
+                            [class.border-amber-500/20]="sub.status === 'under_review'"
+                            class="text-[9px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full border"
+                      >
+                        {{ sub.status === 'under_review' ? 'Reviewing' : sub.status }}
+                      </span>
+                    </div>
+
+                    @if (sub.notes) {
+                      <p class="text-[11px] text-slate-400 bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60 leading-relaxed">
+                        {{ sub.notes }}
+                      </p>
+                    }
+
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                      <span class="material-icons text-[12px] text-slate-600">event</span>
+                      <span>Estimated next cycle renewal:</span>
+                      <span class="text-slate-300 font-bold font-mono">{{ sub.renewalDate }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Subscription controls action panel -->
+                  <div class="mt-5 pt-3.5 border-t border-slate-900 flex justify-between items-center gap-2">
+                    <div class="text-[9px] text-slate-500 uppercase tracking-widest font-extrabold">
+                      Rules Actions
+                    </div>
+                    
+                    <div class="flex items-center gap-1.5">
+                      @if (sub.status === 'active') {
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'under_review')"
+                          class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-300 hover:text-white transition cursor-pointer"
+                        >
+                          Review
+                        </button>
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'paused')"
+                          class="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-[10px] font-bold text-red-400 border border-red-500/10 transition cursor-pointer"
+                        >
+                          Pause Stream
+                        </button>
+                      } @else if (sub.status === 'paused') {
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'active')"
+                          class="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-[10px] font-bold text-emerald-400 border border-emerald-500/10 transition cursor-pointer"
+                        >
+                          Re-activate Service
+                        </button>
+                      } @else if (sub.status === 'under_review') {
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'paused')"
+                          class="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-[10px] font-bold text-red-400 border border-red-500/10 transition cursor-pointer"
+                        >
+                          Pause Stream
+                        </button>
+                        <button 
+                          type="button" 
+                          (click)="changeSubStatus(sub.id, 'active')"
+                          class="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-[10px] font-bold text-emerald-400 border border-emerald-500/10 transition cursor-pointer"
+                        >
+                          Approve Active
+                        </button>
+                      }
+                    </div>
+                  </div>
+
+                </div>
+              }
+            </div>
+          }
+        </div>
 
       </div>
     }

@@ -49,7 +49,7 @@ export class App implements OnInit {
   categoryFilter = signal<string>('all');
   
   // UI Tabs / Screens
-  activeTab = signal<'dashboard' | 'transactions' | 'budgets' | 'advisor'>('dashboard');
+  activeTab = signal<'dashboard' | 'transactions' | 'budgets' | 'advisor' | 'subscriptions'>('dashboard');
   showAuthPanel = signal<boolean>(false);
   authMode = signal<'login' | 'signUp'>('login');
   authError = signal<string | null>(null);
@@ -111,7 +111,7 @@ export class App implements OnInit {
   // Bar Graph columns containing relative heights
   last7DaysSpending = computed(() => {
     const now = new Date();
-    const days = [];
+    const days: { dateStr: string; label: string; amount: number }[] = [];
 
     // Prepopulate last 7 days from now (inclusive)
     for (let i = 6; i >= 0; i--) {
@@ -310,5 +310,13 @@ export class App implements OnInit {
 
   fetchAIInsights() {
     this.engine.requestAIInsights();
+  }
+
+  fetchSubscriptionAnalysis() {
+    this.engine.requestSubscriptionAnalysis();
+  }
+
+  changeSubStatus(id: string, status: 'active' | 'paused' | 'under_review') {
+    this.engine.updateSubscriptionStatus(id, status);
   }
 }
